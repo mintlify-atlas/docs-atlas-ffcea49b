@@ -27,17 +27,20 @@ cc-statusline init [options]
 
 The init command guides you through several configuration choices:
 
-1. **Installation Location** - Choose between global (`~/.claude/`) or project-specific (`./.claude/`) installation
-2. **Theme Selection** - Pick your preferred visual style and layout
-3. **Color Scheme** - Select from various color palettes optimized for terminal display
-4. **Feature Selection** - Enable or disable specific statusline features:
+1. **Feature Selection** - Enable or disable specific statusline features:
    - 📁 Directory display with `~` abbreviation
    - 🌿 Git branch integration
    - 🤖 Model info and Claude Code version
    - 🧠 Context usage tracking with progress bars
    - 💰 Cost tracking with burn rates
-   - ⌛ Session timer until reset
+   - ⌛ Session timer until reset (requires ccusage)
    - 📊 Token analytics and consumption metrics
+
+2. **Color Scheme** - Enable or disable modern color scheme and emojis (default: yes)
+
+3. **Debug Logging** - Enable logging to `.claude/statusline.log` for troubleshooting (default: no)
+
+4. **Installation Location** - Choose between global (`~/.claude/`) or project-specific (`./.claude/`) installation (default: project)
 
 ## Prerequisites Check
 
