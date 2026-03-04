@@ -1,0 +1,398 @@
+---
+title: Session Timer
+description: Track time remaining until usage limit reset with visual countdown
+icon: clock
+---
+
+## Overview
+
+The session timer displays how much time remains until your Claude Code usage limit resets, helping you plan your work around usage windows.
+
+<Warning>
+  **Requires both jq AND ccusage**. This is the ONLY feature that requires the external ccusage tool.
+</Warning>
+
+### What You See
+
+```bash
+⌛ 3h 7m until reset at 01:00 (37%) [===-------]
+```
+
+The display includes:
+- ⌛ Hourglass emoji
+- Hours and minutes until reset
+- Reset time (HH:MM format)
+- Session progress percentage
+- Visual progress bar
+
+## How It Works
+
+### Data Source
+
+Unlike other features, session timer data comes from **ccusage** (not Claude Code's JSON):
+
+```bash
+ccusage blocks --json
+```
+
+Returns:
+```json
+{
+  "blocks": [
+    {
+      "isActive": true,
+      "startTime": "2024-01-15T22:00:00.000Z",
+      "usageLimitResetTime": "2024-01-16T01:00:00.000Z"
+    }
+  ]
+}
+```
+
+### Implementation
+
+From `features/usage.ts:89-123`:
+
+```bash
+# Session reset time requires ccusage (only feature that needs external tool)
+if command -v ccusage >/dev/null 2>&1 && [ "$HAS_JQ" -eq 1 ]; then
+  blocks_output=""
+
+  # Try ccusage with timeout
+  if command -v timeout >/dev/null 2>&1; then
+    blocks_output=$(timeout 5s ccusage blocks --json 2>/dev/null)
+  elif command -v gtimeout >/dev/null 2>&1; then
+    blocks_output=$(gtimeout 5s ccusage blocks --json 2>/dev/null)
+  else
+    blocks_output=$(ccusage blocks --json 2>/dev/null)
+  fi
+
+  if [ -n "$blocks_output" ]; then
+    active_block=$(echo "$blocks_output" | jq -c '.blocks[] | select(.isActive == true)' 2>/dev/null | head -n1)
+    if [ -n "$active_block" ]; then
+      # Session time calculation from ccusage
+      reset_time_str=$(echo "$active_block" | jq -r '.usageLimitResetTime // .endTime // empty')
+      start_time_str=$(echo "$active_block" | jq -r '.startTime // empty')
+
+      if [ -n "$reset_time_str" ] && [ -n "$start_time_str" ]; then
+        start_sec=$(to_epoch "$reset_time_str"); end_sec=$(to_epoch "$reset_time_str"); now_sec=$(date +%s)
+        total=$(( end_sec - start_sec )); (( total<1 )) && total=1
+        elapsed=$(( now_sec - start_sec )); (( elapsed<0 ))&&elapsed=0; (( elapsed>total ))&&elapsed=$total
+        session_pct=$(( elapsed * 100 / total ))
+        remaining=$(( end_sec - now_sec )); (( remaining<0 )) && remaining=0
+        rh=$(( remaining / 3600 )); rm=$(( (remaining % 3600) / 60 ))
+        end_hm=$(fmt_time_hm "$end_sec")
+        session_txt="$(printf '%dh %dm until reset at %s (%d%%)' "$rh" "$rm" "$end_hm" "$session_pct")"
+        session_bar=$(progress_bar "$session_pct" 10)
+      fi
+    fi
+  fi
+fi
+```
+
+<Accordion title="Session calculation breakdown">
+  **Step-by-step process**:
+  
+  1. **Find active block**: Filter ccusage output for `isActive: true`
+  2. **Extract timestamps**: Get start time and reset time
+  3. **Convert to epochs**: Transform ISO timestamps to Unix epochs
+  4. **Calculate totals**:
+     - `total` = end_sec - start_sec (total session duration)
+     - `elapsed` = now_sec - start_sec (time already used)
+     - `remaining` = end_sec - now_sec (time left)
+  5. **Format output**:
+     - Convert remaining seconds to hours and minutes
+     - Calculate percentage: (elapsed / total) × 100
+     - Format reset time as HH:MM
+  6. **Generate progress bar**: Use `progress_bar()` function with session percentage
+</Accordion>
+
+## Time Conversion Utilities
+
+From `features/usage.ts:127-151`:
+
+### Epoch Conversion
+
+```bash
+to_epoch() {
+  ts="$1"
+  if command -v gdate >/dev/null 2>&1; then gdate -d "$ts" +%s 2>/dev/null && return; fi
+  date -u -j -f "%Y-%m-%dT%H:%M:%S%z" "\${ts/Z/+0000}" +%s 2>/dev/null && return
+  python3 - "$ts" <<'PY' 2>/dev/null
+import sys, datetime
+s=sys.argv[1].replace('Z','+00:00')
+print(int(datetime.datetime.fromisoformat(s).timestamp()))
+PY
+}
+```
+
+<Note>
+  The function tries multiple methods for maximum compatibility:
+  1. **GNU date** (gdate on macOS via brew)
+  2. **BSD date** (native macOS date)
+  3. **Python fallback** (if date commands fail)
+</Note>
+
+### Time Formatting
+
+```bash
+fmt_time_hm() {
+  epoch="$1"
+  if date -r 0 +%s >/dev/null 2>&1; then date -r "$epoch" +"%H:%M"; else date -d "@$epoch" +"%H:%M"; fi
+}
+```
+
+Converts Unix epoch to `HH:MM` format using either BSD or GNU date syntax.
+
+## Color-Coded Progress
+
+Session colors change based on how much time has elapsed:
+
+From `features/usage.ts:18-24`:
+
+```bash
+session_color() { 
+  rem_pct=$(( 100 - session_pct ))
+  if   (( rem_pct <= 10 )); then SCLR='38;5;210'  # light pink
+  elif (( rem_pct <= 25 )); then SCLR='38;5;228'  # light yellow  
+  else                          SCLR='38;5;194'; fi  # light green
+  if [ "$use_color" -eq 1 ]; then printf '\033[%sm' "$SCLR"; fi
+}
+```
+
+| Remaining % | Color | ANSI Code | Status |
+|-------------|-------|-----------|--------|
+| 0-10% | Light pink | 38;5;210 | ⏰ Almost reset time |
+| 11-25% | Light yellow | 38;5;228 | ⚡ Getting close to reset |
+| 26-100% | Light green | 38;5;194 | ✅ Plenty of time remaining |
+
+## Display Implementation
+
+From `features/usage.ts:159-167`:
+
+```typescript
+export function generateUsageDisplayCode(config: UsageFeature, colors: boolean, emojis: boolean): string {
+  const sessionEmoji = emojis ? '⌛' : 'session:'
+  
+  // session time
+  if [ -n "$session_txt" ]; then
+    printf '  ${sessionEmoji} %s%s%s' "$(session_color)" "$session_txt" "$(rst)"
+    printf '  %s[%s]%s' "$(session_color)" "$session_bar" "$(rst)"
+  fi
+}
+```
+
+## Configuration
+
+From `cli/prompts.ts:31`:
+
+```typescript
+{ name: '⌛ Session Reset Time (requires ccusage)', value: 'session', checked: false }
+```
+
+<Note>
+  Session timer is **disabled by default** because it requires ccusage installation.
+</Note>
+
+## Installing ccusage
+
+ccusage doesn't need to be installed globally—it works via npx:
+
+```bash
+# Test ccusage (runs automatically via npx)
+ccusage blocks --json
+
+# Or install globally for faster execution
+npm install -g ccusage
+```
+
+<Accordion title="How ccusage integration works">
+  The statusline script checks for ccusage in this order:
+  
+  1. **Check if available**: `command -v ccusage`
+  2. **Run with timeout**: Prevents hanging if ccusage is slow
+     - Tries `timeout` (Linux)
+     - Falls back to `gtimeout` (macOS brew)
+     - Runs without timeout if neither available
+  3. **Parse JSON output**: Uses jq to extract active block
+  4. **Calculate remaining time**: Based on current time and reset time
+  
+  If ccusage is not found or fails, the session timer is simply not displayed—no errors shown.
+</Accordion>
+
+## Example Outputs
+
+<Tabs>
+  <Tab title="Early in Session">
+    ```bash
+    # Just started, 95% time remaining
+    ⌛ 4h 45m until reset at 01:00 (5%) [----------]
+    ```
+    
+    Color: Light green
+  </Tab>
+  
+  <Tab title="Mid Session">
+    ```bash
+    # Halfway through
+    ⌛ 2h 30m until reset at 01:00 (50%) [=====-----]
+    ```
+    
+    Color: Light green
+  </Tab>
+  
+  <Tab title="Approaching Reset">
+    ```bash
+    # 20% time remaining
+    ⌛ 1h 0m until reset at 01:00 (80%) [========--]
+    ```
+    
+    Color: Light yellow (warning)
+  </Tab>
+  
+  <Tab title="Almost Reset">
+    ```bash
+    # Less than 10% remaining
+    ⌛ 0h 15m until reset at 01:00 (95%) [==========-]
+    ```
+    
+    Color: Light pink (imminent reset)
+  </Tab>
+</Tabs>
+
+## Performance Considerations
+
+### Timeout Protection
+
+The ccusage call is wrapped in a timeout to prevent hanging:
+
+```bash
+if command -v timeout >/dev/null 2>&1; then
+  blocks_output=$(timeout 5s ccusage blocks --json 2>/dev/null)
+fi
+```
+
+- **Default timeout**: 5 seconds
+- **Fallback**: No timeout if `timeout` command unavailable
+- **Error handling**: Silently fails if ccusage times out
+
+### Performance Metrics
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| **Execution time** | 50-150ms | Depends on ccusage speed |
+| **Network calls** | 1 per statusline render | ccusage checks Claude API |
+| **Overhead** | ~100ms added | Only when session feature enabled |
+| **Failure impact** | None | Gracefully omits timer if ccusage fails |
+
+<Warning>
+  Session timer adds the most overhead of any feature. Consider the tradeoff:
+  - **Benefit**: Helpful time-until-reset countdown
+  - **Cost**: ~100ms slower statusline render
+  - **Recommendation**: Enable only if you need session tracking
+</Warning>
+
+## Requirements
+
+| Requirement | Purpose | Installation |
+|-------------|---------|-------------|
+| **jq** | JSON parsing | `brew install jq` (macOS)<br/>`apt-get install jq` (Linux) |
+| **ccusage** | Usage block data | `npm install -g ccusage`<br/>or works via `npx` |
+| **timeout/gtimeout** | Prevent hanging | Usually pre-installed |
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Session timer not showing">
+    **Check requirements**:
+    
+    ```bash
+    # Verify jq
+    jq --version
+    
+    # Verify ccusage
+    ccusage blocks --json
+    
+    # Check if feature is enabled
+    cat .claude/statusline.sh | grep -A 5 "session reset time"
+    ```
+    
+    **Solutions**:
+    1. Install jq if missing
+    2. Install ccusage: `npm install -g ccusage`
+    3. Re-run init and enable session feature
+  </Accordion>
+  
+  <Accordion title="ccusage is slow or times out">
+    **Causes**:
+    - Slow network connection
+    - Claude API rate limiting
+    - ccusage checking multiple projects
+    
+    **Solutions**:
+    1. Increase timeout in the generated script (edit `.claude/statusline.sh`)
+    2. Install ccusage globally for faster startup
+    3. Disable session feature if not needed
+  </Accordion>
+  
+  <Accordion title="Incorrect time showing">
+    **Timezone issues**:
+    
+    The time shown is in your local timezone, but calculations use UTC:
+    
+    ```bash
+    # Debug timestamp conversion
+    date  # Your local time
+    date -u  # UTC time
+    ```
+    
+    If times look wrong, it may be a timezone mismatch in ccusage data.
+  </Accordion>
+  
+  <Accordion title="Progress bar stuck at 0% or 100%">
+    **Causes**:
+    - Start time or end time not parsed correctly
+    - Date conversion utilities failing
+    
+    **Debug steps**:
+    1. Enable logging: Re-run init with debug logging enabled
+    2. Check `.claude/statusline.log` for session calculation values
+    3. Test date conversion: `date -d "2024-01-15T22:00:00Z" +%s`
+    4. Ensure Python 3 is available (fallback for date parsing)
+  </Accordion>
+</AccordionGroup>
+
+## Why Session Timer Requires ccusage
+
+Unlike other features that extract data from Claude Code's native JSON:
+
+<CardGroup cols={2}>
+  <Card title="Claude Code JSON" icon="check">
+    **Includes**:
+    - Current directory
+    - Model info
+    - Context usage
+    - Token stats
+    - Cost data
+  </Card>
+  
+  <Card title="ccusage Required" icon="clock">
+    **Only source for**:
+    - Usage block info
+    - Session start time
+    - Usage limit reset time
+    - Active block detection
+  </Card>
+</CardGroup>
+
+Claude Code doesn't expose usage block timing in its JSON output, making ccusage the only way to get this information.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Cost Monitoring" icon="dollar-sign" href="/features/cost-monitoring">
+    Track costs alongside session time
+  </Card>
+  <Card title="Customization" icon="palette" href="/features/customization">
+    Customize display format and colors
+  </Card>
+</CardGroup>

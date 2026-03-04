@@ -1,0 +1,263 @@
+---
+title: 'ccusage Integration'
+description: 'How cc-statusline integrates with ccusage for session tracking and usage analytics'
+---
+
+## Overview
+
+cc-statusline integrates with [ccusage](https://github.com/ryoppippi/ccusage) to provide advanced session tracking features. The integration is **optional** and only required for specific features.
+
+## What Requires ccusage?
+
+Only **one feature** requires ccusage:
+
+- **Session Timer** - Shows time remaining until usage limit reset with progress bars
+
+All other features work **without ccusage**:
+
+- Cost tracking (from Claude Code native data)
+- Token statistics (from Claude Code native data)
+- Burn rate calculations (computed from native data)
+- Directory, git, model info (local sources)
+
+## How It Works
+
+### Data Sources
+
+cc-statusline uses two data sources:
+
+1. **Claude Code Native JSON** (stdin)
+   - Cost data (`cost.total_cost_usd`, `cost.total_duration_ms`)
+   - Token data (`context_window.total_input_tokens`, `context_window.total_output_tokens`)
+   - Model, version, output style info
+   - No external dependencies needed
+
+2. **ccusage CLI** (optional)
+   - Session reset time (`usageLimitResetTime`)
+   - Active block detection
+   - Required only for session timer feature
+
+### Integration Implementation
+
+From `usage.ts:89-123`:
+
+```bash
+# Session reset time requires ccusage (only feature that needs external tool)
+if command -v ccusage >/dev/null 2>&1 && [ "$HAS_JQ" -eq 1 ]; then
+  blocks_output=""
+
+  # Try ccusage with timeout
+  if command -v timeout >/dev/null 2>&1; then
+    blocks_output=$(timeout 5s ccusage blocks --json 2>/dev/null)
+  elif command -v gtimeout >/dev/null 2>&1; then
+    blocks_output=$(gtimeout 5s ccusage blocks --json 2>/dev/null)
+  else
+    blocks_output=$(ccusage blocks --json 2>/dev/null)
+  fi
+
+  if [ -n "$blocks_output" ]; then
+    active_block=$(echo "$blocks_output" | jq -c '.blocks[] | select(.isActive == true)' 2>/dev/null | head -n1)
+    if [ -n "$active_block" ]; then
+      # Session time calculation from ccusage
+      reset_time_str=$(echo "$active_block" | jq -r '.usageLimitResetTime // .endTime // empty')
+      start_time_str=$(echo "$active_block" | jq -r '.startTime // empty')
+
+      if [ -n "$reset_time_str" ] && [ -n "$start_time_str" ]; then
+        start_sec=$(to_epoch "$reset_time_str"); end_sec=$(to_epoch "$reset_time_str"); now_sec=$(date +%s)
+        total=$(( end_sec - start_sec )); (( total<1 )) && total=1
+        elapsed=$(( now_sec - start_sec )); (( elapsed<0 ))&&elapsed=0; (( elapsed>total ))&&elapsed=$total
+        session_pct=$(( elapsed * 100 / total ))
+        remaining=$(( end_sec - now_sec )); (( remaining<0 )) && remaining=0
+        rh=$(( remaining / 3600 )); rm=$(( (remaining % 3600) / 60 ))
+        end_hm=$(fmt_time_hm "$end_sec")
+        session_txt="$(printf '%dh %dm until reset at %s (%d%%)' "$rh" "$rm" "$end_hm" "$session_pct")"
+        session_bar=$(progress_bar "$session_pct" 10)
+      fi
+    fi
+  fi
+fi
+```
+
+## Usage Without Installation
+
+ccusage doesn't need to be installed globally. The statusline uses:
+
+```bash
+command -v ccusage >/dev/null 2>&1
+```
+
+This works with:
+- Global install: `npm install -g ccusage`
+- npx execution: `npx ccusage@latest`
+- Local PATH availability
+
+## Safety Features
+
+### Timeout Protection
+
+From `usage.ts:95-100`, ccusage calls have 5-second timeouts:
+
+```bash
+# Try ccusage with timeout
+if command -v timeout >/dev/null 2>&1; then
+  blocks_output=$(timeout 5s ccusage blocks --json 2>/dev/null)
+elif command -v gtimeout >/dev/null 2>&1; then
+  blocks_output=$(gtimeout 5s ccusage blocks --json 2>/dev/null)
+else
+  blocks_output=$(ccusage blocks --json 2>/dev/null)
+fi
+```
+
+- Uses GNU `timeout` (Linux) or `gtimeout` (macOS with coreutils)
+- Falls back to no timeout if neither available
+- Prevents hanging if ccusage is slow or unresponsive
+
+### Graceful Degradation
+
+From `usage.ts:32-33`:
+
+```typescript
+// Session reset time is the only feature requiring ccusage
+const needsCcusage = config.showSession || config.showProgressBar
+```
+
+The integration is **opt-in**:
+
+1. If ccusage isn't available → session timer doesn't show
+2. If jq isn't available → ccusage won't be called
+3. If ccusage fails → no error, just no session timer
+4. All other features continue working normally
+
+## Cost and Token Data
+
+### Native Data Extraction (No ccusage needed)
+
+From `usage.ts:40-88`, cost and token data comes from Claude Code's stdin:
+
+**With jq** (`usage.ts:42-64`):
+
+```bash
+if [ "$HAS_JQ" -eq 1 ]; then
+  # Cost data
+  cost_usd=$(echo "$input" | jq -r '.cost.total_cost_usd // empty' 2>/dev/null)
+  total_duration_ms=$(echo "$input" | jq -r '.cost.total_duration_ms // empty' 2>/dev/null)
+
+  # Calculate burn rate ($/hour) from cost and duration
+  if [ -n "$cost_usd" ] && [ -n "$total_duration_ms" ] && [ "$total_duration_ms" -gt 0 ]; then
+    cost_per_hour=$(echo "$cost_usd $total_duration_ms" | awk '{printf "%.2f", $1 * 3600000 / $2}')
+  fi
+
+  # Token data from native context_window (no ccusage needed)
+  input_tokens=$(echo "$input" | jq -r '.context_window.total_input_tokens // 0' 2>/dev/null)
+  output_tokens=$(echo "$input" | jq -r '.context_window.total_output_tokens // 0' 2>/dev/null)
+
+  if [ "$input_tokens" != "null" ] && [ "$output_tokens" != "null" ]; then
+    tot_tokens=$(( input_tokens + output_tokens ))
+    [ "$tot_tokens" -eq 0 ] && tot_tokens=""
+  fi
+
+  # Calculate tokens per minute from native data
+  if [ -n "$tot_tokens" ] && [ -n "$total_duration_ms" ] && [ "$total_duration_ms" -gt 0 ]; then
+    tpm=$(echo "$tot_tokens $total_duration_ms" | awk '{if ($2 > 0) printf "%.0f", $1 * 60000 / $2; else print ""}')
+  fi
+fi
+```
+
+**Bash Fallback** (without jq, `usage.ts:66-88`):
+
+```bash
+else
+  # Bash fallback for cost extraction
+  cost_usd=$(echo "$input" | grep -o '"total_cost_usd"[[:space:]]*:[[:space:]]*[0-9.]*' | sed 's/.*:[[:space:]]*\([0-9.]*\).*/\1/')
+  total_duration_ms=$(echo "$input" | grep -o '"total_duration_ms"[[:space:]]*:[[:space:]]*[0-9]*' | sed 's/.*:[[:space:]]*\([0-9]*\).*/\1/')
+
+  # Token data from native context_window (bash fallback)
+  input_tokens=$(echo "$input" | grep -o '"total_input_tokens"[[:space:]]*:[[:space:]]*[0-9]*' | sed 's/.*:[[:space:]]*\([0-9]*\).*/\1/')
+  output_tokens=$(echo "$input" | grep -o '"total_output_tokens"[[:space:]]*:[[:space:]]*[0-9]*' | sed 's/.*:[[:space:]]*\([0-9]*\).*/\1/')
+fi
+```
+
+## Dependencies
+
+### Required
+
+- **bash** - Script execution
+- **awk** - Burn rate calculations
+
+### Optional
+
+- **jq** - JSON parsing (has bash fallback)
+- **ccusage** - Session timer only
+- **timeout/gtimeout** - Safety timeouts for ccusage
+
+## Performance Impact
+
+From testing (`tester.ts:186-231`):
+
+- **Without ccusage**: 45-80ms execution time
+- **With ccusage**: 100-200ms execution time
+- **ccusage timeout**: Maximum 5 seconds (rare)
+
+## Example Output
+
+### With ccusage Available
+
+```
+📁 ~/my-project  🌿 main  🤖 Sonnet 4  📟 v1.0.85
+🧠 Context Remaining: 83% [========--]  ⌛ 3h 7m until reset at 01:00 (37%) [===-------]
+💰 $49.00 ($16.55/h)  📊 14638846 tok (279900 tpm)
+```
+
+### Without ccusage (Still Fully Functional)
+
+```
+📁 ~/my-project  🌿 main  🤖 Sonnet 4  📟 v1.0.85
+🧠 Context Remaining: 83% [========--]
+💰 $49.00 ($16.55/h)  📊 14638846 tok (279900 tpm)
+```
+
+Notice: Only the session timer (⌛) is missing. All cost and token features work perfectly.
+
+## Troubleshooting
+
+### Session Timer Not Showing
+
+1. **Check ccusage availability**:
+   ```bash
+   command -v ccusage
+   npx ccusage@latest blocks --json
+   ```
+
+2. **Check jq availability** (required for ccusage integration):
+   ```bash
+   jq --version
+   ```
+
+3. **Test ccusage manually**:
+   ```bash
+   timeout 5s ccusage blocks --json
+   ```
+
+### Cost/Token Data Not Showing
+
+**This is NOT a ccusage issue!** Cost and tokens use Claude Code native data.
+
+1. **Check jq** (preferred, has fallback):
+   ```bash
+   jq --version
+   ```
+
+2. **Verify Claude Code input** (testing):
+   ```bash
+   echo '{"cost":{"total_cost_usd":1.23}}' | .claude/statusline.sh
+   ```
+
+3. **Check fallback parser** (if jq missing):
+   - Bash grep/sed patterns should extract basic data
+   - May be less reliable than jq
+
+## Related Documentation
+
+- [Claude Code JSON Format](claude-code-json) - Input data structure
+- [Manual Setup](manual-setup) - Manual configuration without installer
+- [ccusage project](https://github.com/ryoppippi/ccusage) - External dependency

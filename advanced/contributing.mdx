@@ -1,0 +1,571 @@
+---
+title: "Contributing Guide"
+description: "How to contribute to cc-statusline development"
+---
+
+Thank you for your interest in contributing to cc-statusline! This guide provides everything you need to get started.
+
+## Quick Start
+
+<Steps>
+  <Step title="Fork the Repository">
+    Fork [cc-statusline](https://github.com/chongdashu/cc-statusline) on GitHub
+  </Step>
+  <Step title="Clone Your Fork">
+    ```bash
+    git clone https://github.com/YOUR-USERNAME/cc-statusline.git
+    cd cc-statusline
+    ```
+  </Step>
+  <Step title="Install Dependencies">
+    ```bash
+    npm install
+    ```
+  </Step>
+  <Step title="Build the Project">
+    ```bash
+    npm run build
+    ```
+  </Step>
+  <Step title="Test Your Changes">
+    ```bash
+    ./dist/index.js --help
+    npx . init --no-install  # Test locally
+    ```
+  </Step>
+</Steps>
+
+## Development Workflow
+
+### 1. Create a Feature Branch
+
+```bash
+git checkout -b feature/amazing-feature
+```
+
+### 2. Make Your Changes
+
+Follow our coding standards (see below) and make your improvements.
+
+### 3. Test Your Changes
+
+```bash
+# Build the project
+npm run build
+
+# Test the CLI
+./dist/index.js init --output ./test-statusline.sh --no-install
+
+# Preview the generated statusline
+./dist/index.js preview ./test-statusline.sh
+```
+
+### 4. Commit Your Changes
+
+```bash
+git add .
+git commit -m "feat: add amazing feature"
+```
+
+See [Commit Message Format](#commit-message-format) below.
+
+### 5. Push and Create Pull Request
+
+```bash
+git push origin feature/amazing-feature
+```
+
+Then open a pull request on GitHub.
+
+## Commit Message Format
+
+We follow [Conventional Commits](https://conventionalcommits.org/) specification:
+
+### Format
+
+```
+type: description
+
+[optional body]
+
+[optional footer]
+```
+
+### Types
+
+| Type | Description | Example |
+|------|-------------|--------|
+| `feat:` | New features | `feat: add support for Python runtime` |
+| `fix:` | Bug fixes | `fix: resolve preview timeout issue` |
+| `docs:` | Documentation changes | `docs: update README installation guide` |
+| `style:` | Code style changes (formatting, etc.) | `style: fix indentation in generator` |
+| `refactor:` | Code refactoring | `refactor: simplify JSON parsing logic` |
+| `test:` | Adding tests | `test: add concurrent locking tests` |
+| `chore:` | Maintenance tasks | `chore: update dependencies` |
+
+### Examples
+
+<CodeGroup>
+```bash Feature
+feat: add context window progress bar
+
+Adds visual progress bar showing remaining context percentage.
+Uses 10-character bar with dynamic colors based on usage.
+```
+
+```bash Bug Fix
+fix: handle missing jq gracefully
+
+Fallback to bash JSON parser when jq is not available.
+Prevents script failures on systems without jq installed.
+```
+
+```bash Documentation
+docs: improve installation instructions
+
+Add detailed jq installation guide for Windows users.
+Include troubleshooting section for common issues.
+```
+</CodeGroup>
+
+## Types of Contributions
+
+### Bug Reports
+
+<Card title="Report a Bug" icon="bug" href="https://github.com/chongdashu/cc-statusline/issues/new">
+  Use GitHub Issues with the bug template
+</Card>
+
+**Include:**
+- Steps to reproduce
+- Expected vs actual behavior
+- Sample statusline.sh if relevant
+- OS and Node.js version
+- jq version (if applicable)
+
+**Example**:
+```markdown
+**Environment:**
+- OS: macOS 14.2
+- Node.js: v20.10.0
+- jq: 1.6
+- cc-statusline: 1.4.0
+
+**Steps to Reproduce:**
+1. Run `cc-statusline init`
+2. Select "context" feature
+3. Preview shows "TBD" instead of percentage
+
+**Expected:** Should show context percentage
+**Actual:** Shows "TBD"
+```
+
+### Feature Requests
+
+<Card title="Request a Feature" icon="lightbulb" href="https://github.com/chongdashu/cc-statusline/issues/new">
+  Use GitHub Issues with the feature template
+</Card>
+
+**Include:**
+- Use case description
+- Expected behavior
+- Implementation complexity estimate
+- Alignment with "dead simple" philosophy
+
+**Example**:
+```markdown
+**Feature:** Add model temperature display
+
+**Use Case:** 
+Users want to see current temperature setting to track when using different configurations.
+
+**Proposed Implementation:**
+- Extract from JSON: `.model.temperature`
+- Display as: 🌡️ 0.7
+- Color: warm colors for high temp, cool for low
+
+**Complexity:** Low (similar to model display)
+```
+
+### Code Contributions
+
+<Tabs>
+  <Tab title="New Features">
+    **Process:**
+    1. Open an issue first to discuss the feature
+    2. Wait for maintainer approval
+    3. Implement following code standards
+    4. Add tests and documentation
+    5. Submit pull request
+    
+    **Best Practices:**
+    - Keep features simple and focused
+    - Add graceful fallbacks
+    - Consider performance impact
+    - Update documentation
+  </Tab>
+  <Tab title="Bug Fixes">
+    **Process:**
+    1. Can be submitted directly (no issue required)
+    2. Include test case that reproduces the bug
+    3. Verify fix doesn't break other features
+    4. Submit pull request with clear description
+    
+    **Best Practices:**
+    - Add regression test
+    - Document the fix in commit message
+    - Consider edge cases
+  </Tab>
+  <Tab title="Documentation">
+    **Process:**
+    1. Always welcome, no approval needed
+    2. Fix typos, improve clarity, add examples
+    3. Submit pull request
+    
+    **Areas:**
+    - README improvements
+    - Code comments
+    - CONTRIBUTING.md updates
+    - Example configurations
+  </Tab>
+</Tabs>
+
+## Code Standards
+
+### TypeScript
+
+<AccordionGroup>
+  <Accordion title="Strict Typing">
+    All functions must have type hints:
+    
+    ```typescript
+    // ✅ Good
+    export function generateBashStatusline(config: StatuslineConfig): string {
+      const hasGit: boolean = config.features.includes('git')
+      return script
+    }
+    
+    // ❌ Bad
+    export function generateBashStatusline(config) {
+      const hasGit = config.features.includes('git')
+      return script
+    }
+    ```
+  </Accordion>
+  <Accordion title="ESM Modules">
+    Use import/export syntax with `.js` extensions:
+    
+    ```typescript
+    // ✅ Good
+    import { StatuslineConfig } from '../cli/prompts.js'
+    import { generateColorBashCode } from '../features/colors.js'
+    
+    // ❌ Bad
+    import { StatuslineConfig } from '../cli/prompts'
+    const colors = require('../features/colors')
+    ```
+  </Accordion>
+  <Accordion title="Error Handling">
+    Always handle errors gracefully:
+    
+    ```typescript
+    // ✅ Good
+    try {
+      const content = await fs.readFile(path, 'utf-8')
+      return JSON.parse(content)
+    } catch (error) {
+      console.error('Failed to read settings:', error.message)
+      return defaultSettings
+    }
+    
+    // ❌ Bad
+    const content = await fs.readFile(path, 'utf-8')
+    return JSON.parse(content)  // May crash
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Code Style
+
+**Indentation**: 2 spaces (no tabs)
+
+**Semicolons**: Not used (follows project style)
+
+**Naming Conventions**:
+- Functions: `camelCase`
+- Types/Interfaces: `PascalCase`
+- Constants: `UPPER_SNAKE_CASE`
+- Variables: `camelCase`
+
+**Comments**:
+- Explain "why", not "what"
+- Document complex algorithms
+- Add JSDoc for public APIs
+
+**Example**:
+```typescript
+// ✅ Good comment
+// Use double escaping because TypeScript template literals need \\
+// and bash needs \" for quotes in grep patterns
+const pattern = `\\"\\ ${field}\\"`
+
+// ❌ Bad comment
+// Set the pattern variable
+const pattern = `\\"\\ ${field}\\"`
+```
+
+### File Structure
+
+```
+src/
+├── cli/           # CLI commands and prompts
+│   ├── commands.ts
+│   └── prompts.ts
+├── features/      # Feature-specific code
+│   ├── colors.ts
+│   ├── git.ts
+│   └── usage.ts
+├── generators/    # Script generators
+│   └── bash-generator.ts
+└── utils/         # Utilities
+    ├── installer.ts
+    ├── validator.ts
+    └── tester.ts
+```
+
+**Rules**:
+- Keep related code together
+- One feature per file
+- Utilities in `utils/`
+- Generators in `generators/`
+
+## Testing Requirements
+
+### Manual Testing
+
+<Steps>
+  <Step title="Build">
+    ```bash
+    npm run build
+    ```
+  </Step>
+  <Step title="Test CLI">
+    ```bash
+    ./dist/index.js init --output ./test-statusline.sh --no-install
+    ```
+  </Step>
+  <Step title="Test Preview">
+    ```bash
+    ./dist/index.js preview ./test-statusline.sh
+    ```
+  </Step>
+  <Step title="Test Different Configurations">
+    Try various feature combinations, themes, and color settings
+  </Step>
+</Steps>
+
+### Test Checklist
+
+- [ ] **With jq**: All features work
+- [ ] **Without jq**: Graceful fallback
+- [ ] **With colors**: Proper ANSI codes
+- [ ] **Without colors**: Clean output (NO_COLOR=1)
+- [ ] **In git repo**: Git features work
+- [ ] **Outside git**: Git features skip
+- [ ] **Different themes**: minimal, compact, modern
+- [ ] **Edge cases**: Invalid JSON, empty input, missing fields
+- [ ] **Performance**: Execution time &lt; 100ms
+
+### Adding Tests
+
+When adding new features:
+
+1. **Update** `src/utils/tester.ts` with mock data
+2. **Add** test cases for new functionality
+3. **Test** backwards compatibility
+4. **Verify** error conditions
+
+## Documentation Requirements
+
+### README Updates
+
+When adding features, update:
+
+- [ ] Features list
+- [ ] Example outputs
+- [ ] Configuration options
+- [ ] Troubleshooting section (if needed)
+
+### Code Documentation
+
+Add JSDoc comments for public APIs:
+
+```typescript
+/**
+ * Generates a bash statusline script based on user configuration
+ * 
+ * @param config - User preferences for features, theme, and colors
+ * @returns Complete bash script as string with shebang
+ * 
+ * @example
+ * ```typescript
+ * const script = generateBashStatusline({
+ *   features: ['git', 'directory'],
+ *   theme: 'compact',
+ *   colors: true
+ * })
+ * ```
+ */
+export function generateBashStatusline(config: StatuslineConfig): string {
+  // ...
+}
+```
+
+## Pull Request Process
+
+### Before Submitting
+
+<Checklist>
+- [ ] Code follows style guidelines
+- [ ] All tests pass
+- [ ] Documentation updated
+- [ ] CHANGELOG.md updated (if applicable)
+- [ ] Commit messages follow conventional commits
+- [ ] Branch is up to date with main
+</Checklist>
+
+### Pull Request Template
+
+```markdown
+## Description
+Brief description of changes and motivation
+
+## Type of Change
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Documentation update
+- [ ] Refactoring
+
+## Testing
+- [ ] Tested locally with `npm run build`
+- [ ] Preview command works: `./dist/index.js preview`
+- [ ] Tested with different configurations
+- [ ] Updated tests if needed
+- [ ] Documentation updated
+
+## Screenshots/Examples
+(If applicable, add screenshots or example output)
+
+## Checklist
+- [ ] Follows code style guidelines
+- [ ] Self-review completed
+- [ ] CHANGELOG.md updated (if user-facing change)
+- [ ] No breaking changes (or documented if necessary)
+```
+
+### Review Process
+
+1. **Maintainer review**: Usually within 1-3 days
+2. **Feedback addressed**: Make requested changes
+3. **Approval**: Once approved, will be merged
+4. **Release**: Included in next version
+
+## Community Guidelines
+
+### Be Respectful
+
+- Use welcoming and inclusive language
+- Respect different viewpoints and experiences
+- Accept constructive feedback gracefully
+- Focus on what is best for the community
+
+### Be Helpful
+
+- Help newcomers get started
+- Share knowledge and best practices
+- Collaborate openly and transparently
+- Provide constructive feedback
+
+### Keep It Simple
+
+- Follow the "dead simple" philosophy
+- Avoid over-engineering solutions
+- Prioritize user experience
+- Maintain fast execution times
+
+## Recognition
+
+Contributors are recognized through:
+
+- **CHANGELOG.md**: Listed for their contributions
+- **Release notes**: Mentioned for significant features
+- **README**: Added to contributors section
+- **Community**: Welcomed and appreciated
+
+## Development Commands
+
+### Build Commands
+
+```bash
+# Production build
+npm run build
+
+# Watch mode for development
+npm run dev
+
+# Test the built CLI
+npm run start
+```
+
+### Testing Commands
+
+```bash
+# Test CLI locally
+./dist/index.js init --no-install
+./dist/index.js preview ./test-statusline.sh
+
+# Test as if installed globally
+npx . init
+
+# Test with mock data
+./test_debug.sh
+
+# Run installation tests
+./test/test-installation.sh
+
+# Test concurrent locking
+./test/test-concurrent-locking.sh
+```
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/chongdashu/cc-statusline/issues">
+    For bugs and feature requests
+  </Card>
+  <Card title="GitHub Discussions" icon="comments" href="https://github.com/chongdashu/cc-statusline/discussions">
+    For questions and ideas
+  </Card>
+</CardGroup>
+
+**Email**: chong-u@aioriented.dev for private matters
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the MIT License.
+
+---
+
+**Thank you for helping make cc-statusline better!** 🚀
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="sitemap" href="/advanced/architecture">
+    Understand the codebase structure
+  </Card>
+  <Card title="Testing" icon="flask" href="/advanced/testing">
+    Learn how to test your changes
+  </Card>
+</CardGroup>

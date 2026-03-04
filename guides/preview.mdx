@@ -1,0 +1,339 @@
+---
+title: Preview Command
+description: Test your statusline configuration before restarting Claude Code
+icon: eye
+---
+
+## Overview
+
+The `preview` command lets you test your statusline script with realistic mock data before installing it into Claude Code. This is essential for debugging and verifying your configuration.
+
+## Basic Usage
+
+```bash
+cc-statusline preview .claude/statusline.sh
+```
+
+<Info>The preview command works with any statusline script path, not just `.claude/statusline.sh`</Info>
+
+## What Preview Does
+
+<Steps>
+  <Step title="Loads Your Script">
+    Reads the statusline script from the specified path.
+    
+    Displays the detected configuration from the script header.
+  </Step>
+  
+  <Step title="Generates Mock Data">
+    Creates realistic Claude Code JSON input that simulates:
+    - Current workspace directory
+    - Active model information
+    - Context window usage
+    - Session metadata
+    - Version information
+  </Step>
+  
+  <Step title="Executes the Script">
+    Runs your statusline script with the mock data as input.
+    
+    Measures execution time for performance analysis.
+  </Step>
+  
+  <Step title="Analyzes Output">
+    Validates the output and provides performance metrics.
+    
+    Checks for presence of expected features.
+  </Step>
+</Steps>
+
+## Example Output
+
+From `src/cli/preview.ts:9-76`, here's what you'll see:
+
+```
+🔍 Statusline Preview Mode
+
+✔ Script loaded!
+Detected Configuration:
+   Theme: detailed
+   Colors: true
+   Features: directory, git, model, context, usage, tokens, burnrate
+
+Generated: 2026-03-04T10:30:15.000Z
+
+Mock Claude Code Input:
+{
+  "workspace": {
+    "current_dir": "/home/user/projects/my-app"
+  },
+  "model": {
+    "display_name": "Claude Sonnet",
+    "version": "4.0"
+  },
+  "context_window": {
+    "context_window_size": 200000,
+    "current_usage": {
+      "input_tokens": 25000,
+      "cache_creation_input_tokens": 5000,
+      "cache_read_input_tokens": 3000
+    }
+  },
+  "session_id": "test-session-123",
+  "version": "1.0.85",
+  "output_style": {
+    "name": "default"
+  }
+}
+
+✔ Test completed in 67ms
+
+✅ Statusline Output:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📁 ~/projects/my-app  🌿 main  🤖 Claude Sonnet  📟 v1.0.85  🎨 default
+🧠 Context Remaining: 83% [========--]  ⌛ 3h 7m until reset at 01:00 (37%) [===-------]
+💰 $49.00 ($16.55/h)  📊 14638846 tok (279900 tpm)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 Performance: 🚀 excellent (67ms)
+✅ Statusline features appear to be working
+
+✨ Preview complete! Use `cc-statusline init` to generate a new statusline.
+```
+
+## Performance Metrics
+
+Preview analyzes execution time and categorizes performance:
+
+<AccordionGroup>
+  <Accordion title="🚀 Excellent (<100ms)" icon="rocket">
+    **Ideal performance.** Your statusline is optimized and will have no noticeable impact on Claude Code.
+    
+    This is the target performance for all configurations.
+  </Accordion>
+  
+  <Accordion title="✅ Good (100-500ms)" icon="check">
+    **Acceptable performance.** Slight delay but generally not noticeable in normal usage.
+    
+    Consider disabling heavy features if you want faster execution.
+  </Accordion>
+  
+  <Accordion title="⚠️ Slow (500-1000ms)" icon="triangle-exclamation">
+    **Performance concern.** Noticeable delay when statusline updates.
+    
+    **Recommendations:**
+    - Disable ccusage integration if not needed
+    - Remove token statistics feature
+    - Disable session reset time tracking
+  </Accordion>
+  
+  <Accordion title="🐌 Timeout (>1000ms)" icon="snail">
+    **Poor performance.** Significant delay impacting user experience.
+    
+    **Action required:**
+    - Check if jq is installed properly
+    - Verify ccusage isn't hanging
+    - Reduce enabled features to minimal set
+    - Check debug logs for errors
+  </Accordion>
+</AccordionGroup>
+
+From `src/cli/preview.ts:88-92`:
+
+```typescript
+function getPerformanceLevel(executionTime: number): string {
+  if (executionTime > 1000) return 'timeout'
+  if (executionTime > 500) return 'slow'
+  if (executionTime > 100) return 'good'
+  return 'excellent'
+}
+```
+
+## Detected Configuration
+
+Preview automatically extracts configuration from your script header:
+
+```bash
+# Theme: detailed | Colors: true | Features: directory, git, model, context, usage
+```
+
+This helps you verify that your statusline was generated with the expected settings.
+
+## Feature Validation
+
+Preview performs basic validation to ensure features are working:
+
+```typescript
+if (testResult.output.includes('📁') || 
+    testResult.output.includes('🌿') || 
+    testResult.output.includes('🤖')) {
+  console.log('✅ Statusline features appear to be working')
+} else {
+  console.log('⚠️  Basic features may not be displaying correctly')
+}
+```
+
+<Warning>If you see "Basic features may not be displaying correctly", check your script for errors or missing dependencies</Warning>
+
+## Mock Data Generation
+
+The preview command uses realistic mock data from `src/utils/tester.ts`:
+
+```typescript
+export function generateMockClaudeInput() {
+  return {
+    workspace: {
+      current_dir: process.cwd()
+    },
+    model: {
+      display_name: 'Claude Sonnet',
+      version: '4.0'
+    },
+    context_window: {
+      context_window_size: 200000,
+      current_usage: {
+        input_tokens: 25000,
+        cache_creation_input_tokens: 5000,
+        cache_read_input_tokens: 3000
+      }
+    },
+    session_id: 'preview-test-session',
+    version: '1.0.85',
+    output_style: {
+      name: 'default'
+    }
+  }
+}
+```
+
+<Tip>The mock data uses your actual current directory for realistic testing</Tip>
+
+## Use Cases
+
+### Before Installation
+
+Test your configuration before installing:
+
+```bash
+# Generate without installing
+cc-statusline init --no-install --output ./test-statusline.sh
+
+# Preview the output
+cc-statusline preview ./test-statusline.sh
+
+# If satisfied, move to .claude/ and configure manually
+```
+
+### After Customization
+
+If you've manually edited your statusline script:
+
+```bash
+# Test your changes
+cc-statusline preview .claude/statusline.sh
+
+# Verify performance hasn't degraded
+```
+
+### Performance Testing
+
+Benchmark different feature combinations:
+
+```bash
+# Generate minimal configuration
+cc-statusline init --no-install --output ./minimal.sh
+# (select only directory and git)
+
+cc-statusline preview ./minimal.sh
+# Should be <50ms
+
+# Generate full configuration  
+cc-statusline init --no-install --output ./full.sh
+# (select all features)
+
+cc-statusline preview ./full.sh
+# Should be <100ms
+```
+
+### Debugging
+
+Combine preview with debug logging:
+
+<Steps>
+  <Step title="Enable logging">
+    Generate statusline with debug logging enabled
+  </Step>
+  
+  <Step title="Run preview">
+    ```bash
+    cc-statusline preview .claude/statusline.sh
+    ```
+  </Step>
+  
+  <Step title="Check logs">
+    ```bash
+    cat .claude/statusline.log
+    ```
+  </Step>
+</Steps>
+
+## Limitations
+
+<Warning>
+  Preview has some limitations compared to running in actual Claude Code:
+</Warning>
+
+1. **No ccusage integration** - Usage costs and session time are not tested (requires real Claude Code session)
+2. **Mock git data** - Git branch is detected from your actual repository, but may differ from Claude Code's working directory
+3. **Static context** - Context window data is mocked and won't reflect actual usage
+
+<Tip>For full testing including ccusage features, you'll need to install and restart Claude Code</Tip>
+
+## Troubleshooting Preview Issues
+
+### Script Not Found
+
+```
+❌ Failed to load script: ENOENT: no such file or directory
+```
+
+**Solution:** Verify the path is correct:
+
+```bash
+ls -la .claude/statusline.sh
+```
+
+### Permission Denied
+
+```
+❌ Test failed: Permission denied
+```
+
+**Solution:** Make the script executable:
+
+```bash
+chmod +x .claude/statusline.sh
+```
+
+### No Output
+
+```
+⚠️ Basic features may not be displaying correctly
+```
+
+**Solution:** Check if the script is valid bash:
+
+```bash
+bash -n .claude/statusline.sh
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration Guide" icon="sliders" href="/guides/configuration">
+    Learn about all available features and options
+  </Card>
+  <Card title="Performance Optimization" icon="gauge-high" href="/guides/performance">
+    Optimize your statusline for speed
+  </Card>
+</CardGroup>

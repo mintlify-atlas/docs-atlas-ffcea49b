@@ -1,0 +1,438 @@
+---
+title: Global vs Project Installation
+description: Choose between global and project-level statusline installation
+icon: location-dot
+---
+
+## Overview
+
+Starting with v1.2.4, cc-statusline supports two installation modes:
+- **🏠 Global Installation** (`~/.claude/`) - Use the same statusline across all projects
+- **📂 Project Installation** (`./.claude/`) - Keep statusline settings project-specific
+
+<Info>Project installation is the default and recommended option for most users</Info>
+
+## Installation Locations
+
+From `src/utils/installer.ts:13-16`:
+
+```typescript
+const isGlobal = config.installLocation === 'global'
+const claudeDir = isGlobal 
+  ? path.join(os.homedir(), '.claude') 
+  : './.claude'
+const scriptPath = path.join(claudeDir, 'statusline.sh')
+```
+
+### Global Installation
+
+**Location:** `~/.claude/statusline.sh`
+
+**Settings:** `~/.claude/settings.json`
+
+**When to use:**
+- You want the same statusline across all projects
+- You work on many small projects and don't want to configure each one
+- You prefer a single source of truth for your statusline configuration
+
+### Project Installation  
+
+**Location:** `./.claude/statusline.sh`
+
+**Settings:** `./.claude/settings.json`
+
+**When to use:**
+- Different projects have different statusline needs
+- You want to commit statusline configuration to version control
+- You're working in a team and want consistent statusline settings
+- You value safety and isolation (default behavior)
+
+## Choosing Installation Type
+
+During the `init` process, you'll be prompted:
+
+```
+📍 Where would you like to install the statusline?
+  🏠 Global (~/.claude) - Use across all projects
+❯ 📂 Project (./.claude) - Only for this project
+```
+
+From `src/cli/prompts.ts:54-62`:
+
+```typescript
+{
+  type: 'list',
+  name: 'installLocation',
+  message: '📍 Where would you like to install the statusline?',
+  choices: [
+    { name: '🏠 Global (~/.claude) - Use across all projects', value: 'global' },
+    { name: '📂 Project (./.claude) - Only for this project', value: 'project' }
+  ],
+  default: 'project'
+}
+```
+
+## How Settings Are Applied
+
+Claude Code follows a precedence order when loading settings:
+
+<Steps>
+  <Step title="Project-Level Settings">
+    `./.claude/settings.json` is checked first.
+    
+    If a `statusLine` configuration exists, it takes highest priority.
+  </Step>
+  
+  <Step title="Global Settings">
+    `~/.claude/settings.json` is used as fallback.
+    
+    Only applied if no project-level statusLine is configured.
+  </Step>
+  
+  <Step title="Default Settings">
+    Claude Code's built-in defaults.
+    
+    Used when no custom statusLine configuration exists.
+  </Step>
+</Steps>
+
+<Tip>You can override a global statusline by installing a project-level one</Tip>
+
+## Safety Features
+
+### Overwrite Protection
+
+From `src/utils/installer.ts:22-35`, cc-statusline never overwrites without confirmation:
+
+```typescript
+try {
+  await fs.access(scriptPath)
+  // File exists, ask for confirmation
+  const { confirmOverwrite } = await inquirer.prompt([{
+    type: 'confirm',
+    name: 'confirmOverwrite',
+    message: `⚠️  ${isGlobal ? 'Global' : 'Project'} statusline.sh already exists. Overwrite?`,
+    default: false
+  }])
+  shouldWrite = confirmOverwrite
+} catch {
+  // File doesn't exist, proceed
+}
+```
+
+<Warning>If you decline to overwrite, the installation is cancelled and your existing configuration is preserved</Warning>
+
+### Settings Protection
+
+From `src/utils/installer.ts:72-90`, existing `settings.json` configurations are protected:
+
+```typescript
+if (existingStatusLine && existingStatusLine.command) {
+  const isOurStatusline = existingStatusLine.command?.includes('statusline.sh')
+  
+  if (!isOurStatusline) {
+    // There's a different statusline configured, ask user
+    const { confirmReplace } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'confirmReplace',
+      message: `⚠️  ${isGlobal ? 'Global' : 'Project'} settings.json already has a statusLine configured (${existingStatusLine.command}). Replace it?`,
+      default: false
+    }])
+    
+    if (!confirmReplace) {
+      console.warn('⚠️  Statusline script was saved but settings.json was not updated.')
+      return
+    }
+  }
+}
+```
+
+## Comparison Table
+
+| Feature | Global Installation | Project Installation |
+|---------|-------------------|---------------------|
+| **Location** | `~/.claude/` | `./.claude/` |
+| **Scope** | All projects | Single project |
+| **Priority** | Lower | Higher |
+| **Version Control** | Not recommended | Recommended |
+| **Team Collaboration** | Personal only | Shareable |
+| **Default** | No | Yes |
+| **Safety** | Affects all projects | Isolated |
+
+## Common Scenarios
+
+### Scenario 1: Individual Developer
+
+**Goal:** Same statusline everywhere for consistency.
+
+**Recommendation:** Global installation
+
+```bash
+cd ~
+cc-statusline init
+# Select: 🏠 Global (~/.claude) - Use across all projects
+```
+
+<Tip>Install from your home directory to avoid accidentally creating project files</Tip>
+
+### Scenario 2: Team Project
+
+**Goal:** Share statusline configuration with team via git.
+
+**Recommendation:** Project installation + commit to version control
+
+```bash
+cd /path/to/project
+cc-statusline init
+# Select: 📂 Project (./.claude) - Only for this project
+
+git add .claude/statusline.sh .claude/settings.json
+git commit -m "Add team statusline configuration"
+```
+
+### Scenario 3: Mixed Usage
+
+**Goal:** Global default with project overrides.
+
+**Strategy:**
+
+<Steps>
+  <Step title="Install globally">
+    ```bash
+    cd ~
+    cc-statusline init
+    # Select: Global
+    # Enable all features you usually want
+    ```
+  </Step>
+  
+  <Step title="Override in specific projects">
+    ```bash
+    cd /path/to/special-project
+    cc-statusline init  
+    # Select: Project
+    # Use minimal features for performance
+    ```
+  </Step>
+</Steps>
+
+### Scenario 4: Multiple Personalities
+
+**Goal:** Different statuslines for work vs personal projects.
+
+**Strategy:** Use project installation for all, no global
+
+```bash
+# Work project
+cd ~/work/client-project
+cc-statusline init
+# Select: Project
+# Enable: directory, git, model, context only
+
+# Personal project  
+cd ~/personal/side-project
+cc-statusline init
+# Select: Project
+# Enable: all features including costs
+```
+
+## Migration Between Types
+
+### Global to Project
+
+To migrate from global to project installation:
+
+<Steps>
+  <Step title="Copy global statusline">
+    ```bash
+    mkdir -p .claude
+    cp ~/.claude/statusline.sh .claude/
+    ```
+  </Step>
+  
+  <Step title="Update settings.json">
+    Create `.claude/settings.json`:
+    ```json
+    {
+      "statusLine": {
+        "type": "command",
+        "command": ".claude/statusline.sh",
+        "padding": 0
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Restart Claude Code">
+    Project settings now take precedence
+  </Step>
+</Steps>
+
+### Project to Global
+
+To migrate from project to global:
+
+<Steps>
+  <Step title="Copy project statusline">
+    ```bash
+    mkdir -p ~/.claude
+    cp .claude/statusline.sh ~/.claude/
+    ```
+  </Step>
+  
+  <Step title="Update global settings">
+    Edit `~/.claude/settings.json`:
+    ```json
+    {
+      "statusLine": {
+        "type": "command",
+        "command": "~/.claude/statusline.sh",
+        "padding": 0
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Remove project configuration">
+    ```bash
+    rm .claude/statusline.sh
+    # Optionally remove statusLine from .claude/settings.json
+    ```
+  </Step>
+  
+  <Step title="Restart Claude Code">
+    Global settings now apply
+  </Step>
+</Steps>
+
+## Platform Differences
+
+### Windows
+
+From `src/utils/installer.ts:94-96`, Windows requires explicit bash command:
+
+```typescript
+const commandPath = process.platform === 'win32'
+  ? `bash ${isGlobal ? '.claude' : '.claude'}/${scriptName}`
+  : (isGlobal ? `~/.claude/${scriptName}` : `.claude/${scriptName}`)
+```
+
+**Global on Windows:** `bash .claude/statusline.sh`
+
+**Project on Windows:** `bash .claude/statusline.sh`
+
+### macOS & Linux
+
+**Global:** `~/.claude/statusline.sh`
+
+**Project:** `.claude/statusline.sh`
+
+<Info>The `~` home directory abbreviation works on macOS and Linux but not Windows</Info>
+
+## Troubleshooting
+
+### Global Installation Not Working
+
+**Symptom:** Statusline doesn't appear in any project
+
+**Solution:**
+
+1. Verify global settings exist:
+   ```bash
+   cat ~/.claude/settings.json
+   ```
+
+2. Check for project-level override:
+   ```bash
+   cat .claude/settings.json 2>/dev/null
+   ```
+
+3. Remove project override if needed:
+   ```bash
+   # Edit .claude/settings.json and remove statusLine section
+   ```
+
+### Project Installation Not Overriding
+
+**Symptom:** Global statusline appears instead of project one
+
+**Solution:**
+
+1. Verify project settings.json exists:
+   ```bash
+   ls -la .claude/settings.json
+   ```
+
+2. Check statusLine configuration:
+   ```bash
+   cat .claude/settings.json
+   ```
+
+3. Ensure the command path is correct:
+   ```json
+   {
+     "statusLine": {
+       "type": "command",
+       "command": ".claude/statusline.sh",
+       "padding": 0
+     }
+   }
+   ```
+
+### Permission Issues with Global
+
+**Symptom:** `Permission denied` when running global statusline
+
+**Solution:**
+
+```bash
+chmod +x ~/.claude/statusline.sh
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Project Installation by Default" icon="shield">
+    Start with project installation for safety and flexibility.
+    
+    You can always switch to global later if you find it suits your workflow.
+  </Accordion>
+  
+  <Accordion title="Commit to Version Control" icon="code-branch">
+    When using project installation, commit both files:
+    
+    ```bash
+    git add .claude/statusline.sh .claude/settings.json
+    ```
+    
+    This ensures team members have the same statusline experience.
+  </Accordion>
+  
+  <Accordion title="Document Team Conventions" icon="book">
+    If using project installation in a team, document in your README:
+    
+    ```markdown
+    ## Statusline
+    
+    This project uses cc-statusline. Run `cc-statusline preview .claude/statusline.sh`
+    to see the current configuration.
+    ```
+  </Accordion>
+  
+  <Accordion title="Keep Global Minimal" icon="minimize">
+    If you use global installation, keep it minimal and fast.
+    
+    Disable expensive features like ccusage integration that might slow down all projects.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration Guide" icon="sliders" href="/guides/configuration">
+    Customize your statusline features
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Fix installation issues
+  </Card>
+</CardGroup>

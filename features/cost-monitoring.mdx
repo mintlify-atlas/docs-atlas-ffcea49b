@@ -1,0 +1,360 @@
+---
+title: Cost & Usage Monitoring
+description: Track API costs, burn rates, and token consumption in real-time
+icon: dollar-sign
+---
+
+## Overview
+
+Cost monitoring displays your current API costs with hourly burn rate calculations, helping you understand spending patterns and optimize usage.
+
+<Note>
+  **Requires jq** for full functionality. Basic cost display works without jq, but burn rate calculations require it.
+</Note>
+
+### What You See
+
+```bash
+💰 $49.00 ($16.55/h)  📊 14638846 tok (279900 tpm)
+```
+
+The display includes:
+- 💰 Current total cost in USD
+- 💵 Burn rate (cost per hour)
+- 📊 Total tokens consumed
+- ⚡ Token burn rate (tokens per minute)
+
+## Cost Tracking
+
+### Data Source
+
+Cost data comes from Claude Code's native cost tracking:
+
+```json
+{
+  "cost": {
+    "total_cost_usd": 49.00,
+    "total_duration_ms": 10677000
+  },
+  "context_window": {
+    "total_input_tokens": 12500000,
+    "total_output_tokens": 2138846
+  }
+}
+```
+
+### Implementation
+
+From `features/usage.ts:36-88`:
+
+<Tabs>
+  <Tab title="With jq (Recommended)">
+    ```bash
+    # Cost data
+    cost_usd=$(echo "$input" | jq -r '.cost.total_cost_usd // empty' 2>/dev/null)
+    total_duration_ms=$(echo "$input" | jq -r '.cost.total_duration_ms // empty' 2>/dev/null)
+
+    # Calculate burn rate ($/hour) from cost and duration
+    if [ -n "$cost_usd" ] && [ -n "$total_duration_ms" ] && [ "$total_duration_ms" -gt 0 ]; then
+      cost_per_hour=$(echo "$cost_usd $total_duration_ms" | awk '{printf "%.2f", $1 * 3600000 / $2}')
+    fi
+    ```
+    
+    **Burn rate calculation**:
+    - Formula: `(total_cost / total_duration_ms) × 3600000`
+    - Converts milliseconds to hours (3600000 ms = 1 hour)
+    - Results in dollars per hour
+  </Tab>
+  
+  <Tab title="Bash Fallback">
+    ```bash
+    # Bash fallback for cost extraction
+    cost_usd=$(echo "$input" | grep -o '"total_cost_usd"[[:space:]]*:[[:space:]]*[0-9.]*' | sed 's/.*:[[:space:]]*\([0-9.]*\).*/\1/')
+    total_duration_ms=$(echo "$input" | grep -o '"total_duration_ms"[[:space:]]*:[[:space:]]*[0-9]*' | sed 's/.*:[[:space:]]*\([0-9]*\).*/\1/')
+
+    # Calculate burn rate (same formula as with jq)
+    if [ -n "$cost_usd" ] && [ -n "$total_duration_ms" ] && [ "$total_duration_ms" -gt 0 ]; then
+      cost_per_hour=$(echo "$cost_usd $total_duration_ms" | awk '{printf "%.2f", $1 * 3600000 / $2}')
+    fi
+    ```
+    
+    <Warning>
+      The bash fallback uses regex patterns and may be less reliable than jq.
+    </Warning>
+  </Tab>
+</Tabs>
+
+### Burn Rate Calculation
+
+<Accordion title="Understanding burn rate formula">
+  **Why multiply by 3600000?**
+  
+  The formula converts cost per millisecond to cost per hour:
+  
+  ```
+  cost_per_hour = (total_cost_usd / total_duration_ms) × 3600000
+  ```
+  
+  Breaking it down:
+  1. `total_cost_usd / total_duration_ms` = cost per millisecond
+  2. Multiply by 1000 = cost per second
+  3. Multiply by 60 = cost per minute
+  4. Multiply by 60 = cost per hour
+  5. Total multiplier: 1000 × 60 × 60 = 3,600,000
+  
+  **Example**:
+  - Total cost: $49.00
+  - Duration: 10,677,000 ms (≈ 2.97 hours)
+  - Calculation: `(49.00 / 10677000) × 3600000 = 16.52`
+  - Result: **$16.52/hour**
+</Accordion>
+
+## Token Analytics
+
+Token tracking shows your total token consumption and burn rate.
+
+### Token Data Extraction
+
+From `features/usage.ts:50-82`:
+
+```bash
+# Token data from native context_window (no ccusage needed)
+input_tokens=$(echo "$input" | jq -r '.context_window.total_input_tokens // 0' 2>/dev/null)
+output_tokens=$(echo "$input" | jq -r '.context_window.total_output_tokens // 0' 2>/dev/null)
+
+if [ "$input_tokens" != "null" ] && [ "$output_tokens" != "null" ]; then
+  tot_tokens=$(( input_tokens + output_tokens ))
+  [ "$tot_tokens" -eq 0 ] && tot_tokens=""
+fi
+
+# Calculate tokens per minute from native data
+if [ -n "$tot_tokens" ] && [ -n "$total_duration_ms" ] && [ "$total_duration_ms" -gt 0 ]; then
+  # Convert ms to minutes and calculate rate
+  tpm=$(echo "$tot_tokens $total_duration_ms" | awk '{if ($2 > 0) printf "%.0f", $1 * 60000 / $2; else print ""}')
+fi
+```
+
+<Note>
+  Token data comes from Claude Code's native `context_window` object—**no ccusage required** for token stats!
+</Note>
+
+### Token Burn Rate Formula
+
+```
+tokens_per_minute = (total_tokens / total_duration_ms) × 60000
+```
+
+Where:
+- `total_tokens` = input_tokens + output_tokens
+- `total_duration_ms` = session duration in milliseconds
+- `60000` = conversion factor (60,000 ms = 1 minute)
+
+## Display Implementation
+
+From `features/usage.ts:154-196`:
+
+```typescript
+export function generateUsageDisplayCode(config: UsageFeature, colors: boolean, emojis: boolean): string {
+  const costEmoji = emojis ? '💵' : '$'
+  const tokenEmoji = emojis ? '📊' : 'tok:'
+  
+  // Cost display
+  if [ -n "$cost_usd" ] && [[ "$cost_usd" =~ ^[0-9.]+$ ]]; then
+    if [ -n "$cost_per_hour" ] && [[ "$cost_per_hour" =~ ^[0-9.]+$ ]]; then
+      printf '  ${costEmoji} %s$%.2f ($%.2f/h)%s' "$(cost_color)" "$cost_usd" "$cost_per_hour" "$(rst)"
+    else
+      printf '  ${costEmoji} %s$%.2f%s' "$(cost_color)" "$cost_usd" "$(rst)"
+    fi
+  fi
+  
+  // Token display
+  if [ -n "$tot_tokens" ] && [[ "$tot_tokens" =~ ^[0-9]+$ ]]; then
+    if [ -n "$tpm" ] && [[ "$tpm" =~ ^[0-9.]+$ ]]; then
+      printf '  ${tokenEmoji} %s%s tok (%.0f tpm)%s' "$(usage_color)" "$tot_tokens" "$tpm" "$(rst)"
+    else
+      printf '  ${tokenEmoji} %s%s tok%s' "$(usage_color)" "$tot_tokens" "$(rst)"
+    fi
+  fi
+}
+```
+
+## Color Scheme
+
+From `features/usage.ts:14-30`:
+
+```bash
+# ---- usage colors ----
+usage_color() { if [ "$use_color" -eq 1 ]; then printf '\033[38;5;189m'; fi; }  # lavender
+cost_color() { if [ "$use_color" -eq 1 ]; then printf '\033[38;5;222m'; fi; }   # light gold
+burn_color() { if [ "$use_color" -eq 1 ]; then printf '\033[38;5;220m'; fi; }   # bright gold
+```
+
+| Element | Color | ANSI Code | Purpose |
+|---------|-------|-----------|----------|
+| Token count | Lavender | 38;5;189 | General usage info |
+| Total cost | Light gold | 38;5;222 | Dollar amounts |
+| Burn rate | Bright gold | 38;5;220 | Highlighted rates |
+
+## Configuration
+
+From `cli/prompts.ts:28-30`:
+
+```typescript
+{ name: '💵 Usage & Cost', value: 'usage', checked: true },
+{ name: '📊 Token Statistics', value: 'tokens', checked: true },
+{ name: '⚡ Burn Rate ($/hr & tokens/min)', value: 'burnrate', checked: true }
+```
+
+All cost and usage features are **enabled by default**.
+
+## Example Outputs
+
+<Tabs>
+  <Tab title="Full Display">
+    ```bash
+    # All metrics enabled
+    💰 $49.00 ($16.55/h)  📊 14638846 tok (279900 tpm)
+    ```
+    
+    Shows:
+    - Total cost: $49.00
+    - Hourly burn rate: $16.55/h
+    - Total tokens: 14,638,846
+    - Token burn rate: 279,900 tokens/minute
+  </Tab>
+  
+  <Tab title="Cost Only">
+    ```bash
+    # Tokens disabled
+    💰 $2.48 ($12.50/h)
+    ```
+    
+    Shows cost and burn rate without token stats.
+  </Tab>
+  
+  <Tab title="Tokens Only">
+    ```bash
+    # Cost disabled, tokens enabled
+    📊 1523400 tok (45000 tpm)
+    ```
+    
+    Shows token consumption without cost.
+  </Tab>
+  
+  <Tab title="No Burn Rates">
+    ```bash
+    # Burn rate feature disabled
+    💰 $5.23  📊 2450000 tok
+    ```
+    
+    Shows totals without per-hour/per-minute calculations.
+  </Tab>
+</Tabs>
+
+## Understanding Your Costs
+
+<CardGroup cols={2}>
+  <Card title="Low Burn Rate" icon="check">
+    **&lt; $5/hour**
+    
+    Typical for:
+    - Code review sessions
+    - Documentation work
+    - Light development
+  </Card>
+  
+  <Card title="Medium Burn Rate" icon="gauge">
+    **$5-20/hour**
+    
+    Common for:
+    - Active development
+    - Large refactorings
+    - Complex debugging
+  </Card>
+  
+  <Card title="High Burn Rate" icon="triangle-exclamation">
+    **$20-50/hour**
+    
+    Happens during:
+    - Heavy code generation
+    - Large file processing
+    - Extensive context usage
+  </Card>
+  
+  <Card title="Very High Burn Rate" icon="fire">
+    **&gt; $50/hour**
+    
+    Consider:
+    - Starting fresh conversation
+    - Reducing context size
+    - Breaking into smaller tasks
+  </Card>
+</CardGroup>
+
+## Requirements
+
+| Feature | Requirement | Fallback |
+|---------|-------------|----------|
+| Cost display | jq recommended | Bash regex fallback available |
+| Burn rate | jq + awk | Limited without jq |
+| Token stats | jq recommended | Bash regex fallback available |
+| Token burn rate | jq + awk | Not available without jq |
+
+## Performance
+
+- **Execution time**: ~10-15ms with jq
+- **Data source**: Native Claude Code JSON (no external API calls)
+- **Calculations**: Simple arithmetic via awk
+- **Overhead**: Minimal
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Cost not showing">
+    **Possible causes**:
+    - No cost data available yet (fresh conversation)
+    - JSON extraction failed
+    - jq not installed
+    
+    **Solutions**:
+    1. Continue conversation to generate some usage
+    2. Install jq: `brew install jq` (macOS) or `apt-get install jq` (Linux)
+    3. Enable logging to debug JSON extraction
+  </Accordion>
+  
+  <Accordion title="Burn rate showing as $0.00/h">
+    **Cause**: Duration is zero or very small
+    
+    **Normal behavior**: Early in a conversation, duration may be too small for meaningful burn rate calculation. The rate will stabilize after a few minutes of usage.
+  </Accordion>
+  
+  <Accordion title="Token count seems wrong">
+    **Debug steps**:
+    1. Enable debug logging during init
+    2. Check `.claude/statusline.log` for raw JSON
+    3. Verify `context_window.total_input_tokens` and `total_output_tokens` values
+    4. Formula: total = input + output tokens
+    
+    **Note**: Token counts are cumulative for the entire conversation.
+  </Accordion>
+  
+  <Accordion title="Burn rate fluctuates wildly">
+    **Normal behavior**: Burn rate is calculated as average over total duration:
+    - Early in conversation: Rate may seem high
+    - During pauses: Rate decreases
+    - During heavy usage: Rate increases
+    
+    This is expected—it reflects your actual usage pattern over time.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Session Timer" icon="clock" href="/features/session-timer">
+    Track time until usage reset
+  </Card>
+  <Card title="Customization" icon="sliders" href="/features/customization">
+    Customize display format and colors
+  </Card>
+</CardGroup>

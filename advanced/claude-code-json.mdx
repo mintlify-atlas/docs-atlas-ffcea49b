@@ -1,0 +1,417 @@
+---
+title: 'Claude Code JSON Input'
+description: 'Complete reference for the JSON data structure Claude Code provides to statusline scripts'
+---
+
+## Overview
+
+Claude Code passes a JSON object via stdin to statusline scripts. This object contains session metadata, cost information, token usage, and model details.
+
+cc-statusline reads this JSON to display directory, model, costs, context usage, and other information.
+
+## JSON Structure
+
+### Complete Example
+
+From `tester.ts:51-88`, here's the actual mock data structure used for testing:
+
+```json
+{
+  "session_id": "test-session-123",
+  "transcript_path": "/home/user/.claude/conversations/test.jsonl",
+  "cwd": "/home/user/projects/my-project",
+  "workspace": {
+    "current_dir": "/home/user/projects/my-project",
+    "project_dir": "/home/user/projects/my-project"
+  },
+  "model": {
+    "id": "claude-opus-4-1-20250805",
+    "display_name": "Opus 4.1",
+    "version": "20250805"
+  },
+  "version": "1.0.80",
+  "output_style": {
+    "name": "default"
+  },
+  "cost": {
+    "total_cost_usd": 0.42,
+    "total_duration_ms": 180000,
+    "total_api_duration_ms": 2300,
+    "total_lines_added": 156,
+    "total_lines_removed": 23
+  },
+  "context_window": {
+    "total_input_tokens": 15234,
+    "total_output_tokens": 4521,
+    "context_window_size": 200000,
+    "current_usage": {
+      "input_tokens": 8500,
+      "output_tokens": 1200,
+      "cache_creation_input_tokens": 5000,
+      "cache_read_input_tokens": 2000
+    }
+  }
+}
+```
+
+## Field Reference
+
+### Top-Level Fields
+
+<ResponseField name="session_id" type="string">
+  Unique identifier for the current Claude Code session.
+  
+  **Example**: `"test-session-123"`
+</ResponseField>
+
+<ResponseField name="transcript_path" type="string">
+  Path to the JSONL file containing the conversation transcript.
+  
+  **Example**: `"/home/user/.claude/conversations/test.jsonl"`
+</ResponseField>
+
+<ResponseField name="cwd" type="string">
+  Current working directory for the Claude Code session.
+  
+  **Example**: `"/home/user/projects/my-project"`
+  
+  **Used by**: Directory feature (with `~` abbreviation)
+</ResponseField>
+
+<ResponseField name="version" type="string">
+  Claude Code version number.
+  
+  **Example**: `"1.0.80"`
+  
+  **Used by**: Claude Code version display
+</ResponseField>
+
+### workspace Object
+
+<ResponseField name="workspace.current_dir" type="string">
+  Current directory within the workspace.
+  
+  **Example**: `"/home/user/projects/my-project"`
+</ResponseField>
+
+<ResponseField name="workspace.project_dir" type="string">
+  Root directory of the project workspace.
+  
+  **Example**: `"/home/user/projects/my-project"`
+</ResponseField>
+
+### model Object
+
+<ResponseField name="model.id" type="string">
+  Full model identifier including version date.
+  
+  **Example**: `"claude-opus-4-1-20250805"`
+</ResponseField>
+
+<ResponseField name="model.display_name" type="string">
+  Human-readable model name.
+  
+  **Example**: `"Opus 4.1"`
+  
+  **Used by**: Model feature display
+</ResponseField>
+
+<ResponseField name="model.version" type="string">
+  Model version date in YYYYMMDD format.
+  
+  **Example**: `"20250805"`
+</ResponseField>
+
+### output_style Object
+
+<ResponseField name="output_style.name" type="string">
+  Current output style setting in Claude Code.
+  
+  **Example**: `"default"`, `"compact"`, `"verbose"`
+  
+  **Used by**: Output style feature (if enabled)
+</ResponseField>
+
+### cost Object
+
+<ResponseField name="cost.total_cost_usd" type="number">
+  Total cost in US dollars for the current session.
+  
+  **Example**: `0.42`
+  
+  **Used by**: Cost tracking feature (`usage.ts:43`)
+</ResponseField>
+
+<ResponseField name="cost.total_duration_ms" type="number">
+  Total session duration in milliseconds.
+  
+  **Example**: `180000` (3 minutes)
+  
+  **Used by**: Burn rate calculation (`usage.ts:47-49`)
+  
+  **Formula**: `burn_rate = (cost_usd * 3600000) / duration_ms`
+</ResponseField>
+
+<ResponseField name="cost.total_api_duration_ms" type="number">
+  Total time spent in API calls in milliseconds.
+  
+  **Example**: `2300`
+</ResponseField>
+
+<ResponseField name="cost.total_lines_added" type="number">
+  Total lines of code added during the session.
+  
+  **Example**: `156`
+</ResponseField>
+
+<ResponseField name="cost.total_lines_removed" type="number">
+  Total lines of code removed during the session.
+  
+  **Example**: `23`
+</ResponseField>
+
+### context_window Object
+
+<ResponseField name="context_window.total_input_tokens" type="number">
+  Total input tokens consumed in the session.
+  
+  **Example**: `15234`
+  
+  **Used by**: Token statistics (`usage.ts:52-53`)
+</ResponseField>
+
+<ResponseField name="context_window.total_output_tokens" type="number">
+  Total output tokens generated in the session.
+  
+  **Example**: `4521`
+  
+  **Used by**: Token statistics (`usage.ts:52-53`)
+</ResponseField>
+
+<ResponseField name="context_window.context_window_size" type="number">
+  Maximum context window size for the current model.
+  
+  **Example**: `200000`
+  
+  **Used by**: Context percentage calculation
+</ResponseField>
+
+<ResponseField name="context_window.current_usage" type="object">
+  Detailed breakdown of current token usage including cache tokens.
+</ResponseField>
+
+<ResponseField name="context_window.current_usage.input_tokens" type="number">
+  Input tokens in the current request.
+  
+  **Example**: `8500`
+</ResponseField>
+
+<ResponseField name="context_window.current_usage.output_tokens" type="number">
+  Output tokens in the current response.
+  
+  **Example**: `1200`
+</ResponseField>
+
+<ResponseField name="context_window.current_usage.cache_creation_input_tokens" type="number">
+  Tokens used for cache creation.
+  
+  **Example**: `5000`
+</ResponseField>
+
+<ResponseField name="context_window.current_usage.cache_read_input_tokens" type="number">
+  Tokens read from cache.
+  
+  **Example**: `2000`
+</ResponseField>
+
+## Parsing Methods
+
+### With jq (Recommended)
+
+From `usage.ts:42-64`, cc-statusline uses jq for reliable JSON parsing:
+
+```bash
+# Cost data extraction
+cost_usd=$(echo "$input" | jq -r '.cost.total_cost_usd // empty' 2>/dev/null)
+total_duration_ms=$(echo "$input" | jq -r '.cost.total_duration_ms // empty' 2>/dev/null)
+
+# Token data extraction
+input_tokens=$(echo "$input" | jq -r '.context_window.total_input_tokens // 0' 2>/dev/null)
+output_tokens=$(echo "$input" | jq -r '.context_window.total_output_tokens // 0' 2>/dev/null)
+
+# Model info extraction
+model_name=$(echo "$input" | jq -r '.model.display_name // .model.id // "Claude"' 2>/dev/null)
+version=$(echo "$input" | jq -r '.version // empty' 2>/dev/null)
+```
+
+**Advantages**:
+- Robust and reliable
+- Handles edge cases (nulls, missing fields)
+- Supports complex queries with fallbacks (`//` operator)
+- Fast execution (&lt;10ms)
+
+### Bash Fallback (No jq)
+
+From `usage.ts:66-88`, if jq is unavailable:
+
+```bash
+# Bash fallback for cost extraction
+cost_usd=$(echo "$input" | grep -o '"total_cost_usd"[[:space:]]*:[[:space:]]*[0-9.]*' | sed 's/.*:[[:space:]]*\([0-9.]*\).*/\1/')
+total_duration_ms=$(echo "$input" | grep -o '"total_duration_ms"[[:space:]]*:[[:space:]]*[0-9]*' | sed 's/.*:[[:space:]]*\([0-9]*\).*/\1/')
+
+# Token data extraction (bash)
+input_tokens=$(echo "$input" | grep -o '"total_input_tokens"[[:space:]]*:[[:space:]]*[0-9]*' | sed 's/.*:[[:space:]]*\([0-9]*\).*/\1/')
+output_tokens=$(echo "$input" | grep -o '"total_output_tokens"[[:space:]]*:[[:space:]]*[0-9]*' | sed 's/.*:[[:space:]]*\([0-9]*\).*/\1/')
+```
+
+**Limitations**:
+- Less reliable with malformed JSON
+- No handling of null values
+- Harder to maintain
+- Slower than jq (grep + sed pipeline)
+
+**Recommendation**: Install jq for best experience.
+
+## Usage in Scripts
+
+### Reading stdin
+
+All statusline scripts should read JSON from stdin:
+
+```bash
+#!/usr/bin/env bash
+
+# Read entire JSON input
+input=$(cat)
+
+# Check if jq is available
+if command -v jq >/dev/null 2>&1; then
+  HAS_JQ=1
+else
+  HAS_JQ=0
+fi
+
+# Extract fields based on availability
+if [ "$HAS_JQ" -eq 1 ]; then
+  # Use jq
+  cost=$(echo "$input" | jq -r '.cost.total_cost_usd // empty')
+else
+  # Use bash fallback
+  cost=$(echo "$input" | grep -o '"total_cost_usd"[[:space:]]*:[[:space:]]*[0-9.]*' | sed 's/.*:[[:space:]]*\([0-9.]*\).*/\1/')
+fi
+```
+
+### Calculations
+
+**Burn Rate** (from `usage.ts:47-49`):
+
+```bash
+if [ -n "$cost_usd" ] && [ -n "$total_duration_ms" ] && [ "$total_duration_ms" -gt 0 ]; then
+  # Convert ms to hours: 3600000 ms = 1 hour
+  cost_per_hour=$(echo "$cost_usd $total_duration_ms" | awk '{printf "%.2f", $1 * 3600000 / $2}')
+fi
+```
+
+**Tokens Per Minute** (from `usage.ts:59-64`):
+
+```bash
+if [ -n "$tot_tokens" ] && [ -n "$total_duration_ms" ] && [ "$total_duration_ms" -gt 0 ]; then
+  # Convert ms to minutes: 60000 ms = 1 minute
+  tpm=$(echo "$tot_tokens $total_duration_ms" | awk '{if ($2 > 0) printf "%.0f", $1 * 60000 / $2; else print ""}')
+fi
+```
+
+**Context Percentage**:
+
+```bash
+total_tokens=$(( input_tokens + output_tokens ))
+context_size=200000  # or extract from context_window.context_window_size
+context_pct=$(( (total_tokens * 100) / context_size ))
+remaining_pct=$(( 100 - context_pct ))
+```
+
+## Testing with Mock Data
+
+cc-statusline includes test utilities for mock data generation:
+
+### Generate Test Input
+
+From `tester.ts:51-88`:
+
+```typescript
+export function generateMockClaudeInput(config?: Partial<StatuslineConfig>): any {
+  return {
+    session_id: "test-session-123",
+    cwd: "/home/user/projects/my-project",
+    model: {
+      id: "claude-opus-4-1-20250805",
+      display_name: "Opus 4.1",
+      version: "20250805"
+    },
+    version: "1.0.80",
+    cost: {
+      total_cost_usd: 0.42,
+      total_duration_ms: 180000
+    },
+    context_window: {
+      total_input_tokens: 15234,
+      total_output_tokens: 4521,
+      context_window_size: 200000
+    }
+  }
+}
+```
+
+### Test Your Statusline
+
+```bash
+# Using cc-statusline preview command
+cc-statusline preview .claude/statusline.sh
+
+# Manual test with mock data
+echo '{"cwd":"/home/user/test","cost":{"total_cost_usd":1.23}}' | .claude/statusline.sh
+
+# Test with complete mock data
+cat mock-input.json | .claude/statusline.sh
+```
+
+## Error Handling
+
+### Missing Fields
+
+Always check for empty/null values:
+
+```bash
+if [ -n "$cost_usd" ] && [[ "$cost_usd" =~ ^[0-9.]+$ ]]; then
+  printf '💰 $%.2f' "$cost_usd"
+fi
+```
+
+### Invalid JSON
+
+Handle parsing errors gracefully:
+
+```bash
+cost_usd=$(echo "$input" | jq -r '.cost.total_cost_usd // empty' 2>/dev/null)
+if [ -z "$cost_usd" ]; then
+  # Fallback to bash parser or skip feature
+  cost_usd=$(echo "$input" | grep -o '"total_cost_usd"[[:space:]]*:[[:space:]]*[0-9.]*' | sed 's/.*:[[:space:]]*\([0-9.]*\).*/\1/')
+fi
+```
+
+### Zero Values
+
+Distinguish between "no data" and "zero":
+
+```bash
+# Don't show if tokens are exactly 0
+if [ -n "$tot_tokens" ] && [ "$tot_tokens" -ne 0 ]; then
+  printf '📊 %s tok' "$tot_tokens"
+fi
+```
+
+## Related Documentation
+
+- [ccusage Integration](ccusage-integration) - External ccusage data format
+- [Manual Setup](manual-setup) - Configuring statusline to receive this JSON
+- [Installation](/getting-started/installation) - Quick setup guide

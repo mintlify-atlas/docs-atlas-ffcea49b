@@ -1,80 +1,426 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick start
+description: Get cc-statusline running in under 60 seconds
 ---
 
-## Get started in three steps
+## One command setup
 
-Get your documentation site running locally and make your first customization.
+Get started with cc-statusline in three simple steps:
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Run the installer">
+    Execute the interactive installer:
+    
+    ```bash
+    npx @chongdashu/cc-statusline@latest init
+    ```
+    
+    <Info>
+      This command works immediately without any global installation. The `@latest` tag ensures you get the newest version.
+    </Info>
+  </Step>
+  
+  <Step title="Answer the prompts">
+    The installer will ask two questions:
+    
+    **1. Installation location:**
+    ```bash
+    ? Where would you like to install the statusline?
+    ❯ Project-level (.claude/ in current directory)
+      Global (~/.claude/ in home directory)
+    ```
+    
+    **2. Feature selection:**
+    ```bash
+    ? Select the features you want to include:
+    ◉ Directory display
+    ◉ Git branch
+    ◉ Model name & Claude Code version
+    ◉ Output style
+    ◉ Context usage (requires jq)
+    ◉ Cost & burn rate
+    ◯ Session reset time (requires ccusage)
+    ◉ Token statistics
+    ```
+    
+    <Tip>
+      All features are pre-selected except session reset time. Use **Space** to toggle, **Enter** to confirm.
+    </Tip>
+  </Step>
+  
+  <Step title="Restart Claude Code">
+    Close and reopen Claude Code to see your new statusline:
+    
+    ```bash
+    📁 ~/my-project  🌿 main  🤖 Sonnet 4  📟 v1.0.85  🎨 default
+    🧠 Context Remaining: 95% [=========-]
+    💰 $2.48 ($12.50/h)  📊 485234 tok (8420 tpm)
+    ```
+    
+    <Warning>
+      The statusline won't appear until you restart Claude Code.
+    </Warning>
+  </Step>
+</Steps>
+
+## What just happened?
+
+The installer performed these actions automatically:
+
+<CardGroup cols={2}>
+  <Card title="Generated script" icon="file-code">
+    Created an optimized bash script at `.claude/statusline.sh`
+  </Card>
+  <Card title="Updated config" icon="gear">
+    Modified `.claude/settings.json` to register the statusline
+  </Card>
+  <Card title="Set permissions" icon="key">
+    Made the script executable with `chmod +x`
+  </Card>
+  <Card title="Validated setup" icon="circle-check">
+    Checked for jq and provided installation guidance if missing
+  </Card>
+</CardGroup>
+
+## Preview before restart
+
+Want to see your statusline without restarting Claude Code? Use the preview command:
+
+```bash
+cc-statusline preview .claude/statusline.sh
+```
+
+Expected output:
+
+```bash
+📊 Testing statusline with mock data...
+
+📁 ~/Projects/cc-statusline  🌿 feature/docs  🤖 Sonnet 4  📟 v1.0.85  🎨 default
+🧠 Context Remaining: 83% [========--]  ⌛ 3h 7m until reset at 01:00 (37%) [===-------]
+💰 $49.00 ($16.55/h)  📊 14638846 tok (279900 tpm)
+
+✓ Statusline executed successfully
+⚡ Execution time: 67ms
+✓ Performance: Excellent (< 100ms)
+
+📋 Enabled Features:
+  ✓ Directory display
+  ✓ Git branch
+  ✓ Model info
+  ✓ Context tracking
+  ✓ Cost tracking
+  ✓ Session timer
+  ✓ Token statistics
+```
+
+<Tip>
+  The preview command uses mock data to simulate Claude Code's JSON input, showing exactly how your statusline will look.
+</Tip>
+
+## Understanding your statusline
+
+Here's what each element means:
+
+### Line 1: Environment information
+
+```bash
+📁 ~/my-project  🌿 main  🤖 Sonnet 4  📟 v1.0.85  🎨 default
+```
 
 <AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
+  <Accordion title="📁 Directory display">
+    Shows your current working directory with `~` abbreviation:
+    - `~/my-project` - Project in home directory
+    - `~/code/work/api` - Nested project path
+    - `/usr/local/bin` - Absolute paths shown as-is
   </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
+  
+  <Accordion title="🌿 Git branch">
+    Displays the current git branch:
+    - `main` - Default branch
+    - `feature/statusline` - Feature branch
+    - Empty if not in a git repository
+  </Accordion>
+  
+  <Accordion title="🤖 Model name">
+    Shows which Claude model is active:
+    - `Sonnet 4` - Claude 4.5 Sonnet
+    - `Opus 3` - Claude 3 Opus
+    - `Haiku 3` - Claude 3 Haiku
+  </Accordion>
+  
+  <Accordion title="📟 Claude Code version">
+    Displays your Claude Code version:
+    - `v1.0.85` - Release version
+    - Helps track compatibility
+  </Accordion>
+  
+  <Accordion title="🎨 Output style">
+    Shows the current output style setting:
+    - `default` - Standard output
+    - `XML` - XML-formatted responses
+    - `JSON` - JSON-formatted responses
   </Accordion>
 </AccordionGroup>
 
-### Step 2: Deploy your changes
+### Line 2: Context and session tracking
+
+```bash
+🧠 Context Remaining: 83% [========--]  ⌛ 3h 7m until reset at 01:00 (37%) [===-------]
+```
 
 <AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+  <Accordion title="🧠 Context remaining">
+    Shows how much of your context window is available:
+    - `95% [=========-]` - Plenty of room
+    - `50% [=====-----]` - Half used
+    - `10% [=---------]` - Almost full (consider starting fresh)
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
+    <Note>
+      Requires `jq` to be installed. Without jq, this feature won't display.
+    </Note>
+  </Accordion>
+  
+  <Accordion title="⌛ Session timer">
+    Countdown to when your usage limits reset:
+    - `3h 7m until reset at 01:00` - Time remaining
+    - `(37%) [===-------]` - Progress bar showing elapsed time
+    - Helps you plan when to start resource-intensive tasks
+    
+    <Warning>
+      Requires `ccusage` and is the only feature that needs this external tool.
+    </Warning>
   </Accordion>
 </AccordionGroup>
 
-### Step 3: Go live
+### Line 3: Cost and token analytics
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+```bash
+💰 $49.00 ($16.55/h)  📊 14638846 tok (279900 tpm)
+```
+
+<AccordionGroup>
+  <Accordion title="💰 Cost tracking">
+    Displays your current session costs:
+    - `$49.00` - Total cost so far
+    - `($16.55/h)` - Burn rate (cost per hour)
+    - Helps you stay within budget
+    
+    <Tip>
+      The burn rate is calculated from Claude Code's native cost and duration data - no external tools needed!
+    </Tip>
+  </Accordion>
+  
+  <Accordion title="📊 Token statistics">
+    Shows token consumption metrics:
+    - `14638846 tok` - Total tokens used (input + output)
+    - `(279900 tpm)` - Tokens per minute burn rate
+    - Uses Claude Code's native `context_window` data
+    
+    <Info>
+      As of v1.4.0, token stats are calculated natively from Claude Code's JSON input - no ccusage needed!
+    </Info>
+  </Accordion>
+</AccordionGroup>
+
+## Common first-time issues
+
+<AccordionGroup>
+  <Accordion title="Statusline not showing after restart">
+    **Problem:** Claude Code started but no statusline appears.
+    
+    **Solutions:**
+    
+    <Steps>
+      <Step title="Check settings.json">
+        Verify the configuration exists:
+        
+        ```bash
+        cat .claude/settings.json
+        ```
+        
+        Should contain:
+        ```json
+        {
+          "statusLine": {
+            "type": "command",
+            "command": ".claude/statusline.sh",
+            "padding": 0
+          }
+        }
+        ```
+      </Step>
+      
+      <Step title="Check permissions">
+        Ensure the script is executable:
+        
+        ```bash
+        ls -l .claude/statusline.sh
+        ```
+        
+        Should show: `-rwxr-xr-x` (note the `x` for executable)
+        
+        If not, fix it:
+        ```bash
+        chmod +x .claude/statusline.sh
+        ```
+      </Step>
+      
+      <Step title="Test manually">
+        Run the script directly:
+        
+        ```bash
+        echo '{}' | .claude/statusline.sh
+        ```
+        
+        This should output your statusline (with some missing data due to empty JSON).
+      </Step>
+    </Steps>
+  </Accordion>
+  
+  <Accordion title="Missing jq warning">
+    **Problem:** Installer warns that jq is not installed.
+    
+    **Impact:**
+    - No context remaining percentage
+    - No token statistics
+    - No session timer
+    - Basic fallback parser used (less reliable)
+    
+    **Solution:**
+    
+    <Tabs>
+      <Tab title="macOS">
+        ```bash
+        brew install jq
+        ```
+      </Tab>
+      <Tab title="Linux">
+        ```bash Ubuntu/Debian
+        sudo apt-get install jq
+        ```
+      </Tab>
+      <Tab title="Windows">
+        ```powershell
+        # Using Chocolatey
+        choco install jq
+        
+        # Or Scoop
+        scoop install jq
+        ```
+      </Tab>
+    </Tabs>
+    
+    After installing jq, re-run the installer:
+    ```bash
+    npx @chongdashu/cc-statusline@latest init
+    ```
+  </Accordion>
+  
+  <Accordion title="Slow execution (> 500ms)">
+    **Problem:** Statusline takes a long time to display.
+    
+    **Solutions:**
+    
+    1. **Check performance:**
+       ```bash
+       cc-statusline preview .claude/statusline.sh
+       ```
+       Look for the execution time in the output.
+    
+    2. **Disable heavy features:**
+       Re-run init and disable session timer (requires external ccusage call):
+       ```bash
+       npx @chongdashu/cc-statusline@latest init
+       ```
+    
+    3. **Check for stale processes:**
+       ```bash
+       ps aux | grep ccusage | grep -v grep
+       ```
+       Kill any hanging processes if found.
+  </Accordion>
+  
+  <Accordion title="Colors not working">
+    **Problem:** Statusline shows without colors or with garbled characters.
+    
+    **Causes:**
+    - `NO_COLOR` environment variable is set
+    - Terminal doesn't support 256 colors
+    - Using a non-standard terminal
+    
+    **Solutions:**
+    
+    1. **Check NO_COLOR:**
+       ```bash
+       echo $NO_COLOR
+       ```
+       If it outputs anything, unset it:
+       ```bash
+       unset NO_COLOR
+       ```
+    
+    2. **Verify terminal color support:**
+       ```bash
+       echo $TERM
+       ```
+       Should be `xterm-256color` or similar.
+  </Accordion>
+</AccordionGroup>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
+Now that you have cc-statusline running, explore these topics:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card
+    title="Configuration"
+    icon="sliders"
+    href="/guides/configuration"
+  >
+    Customize your statusline with advanced options
+  </Card>
+  <Card
+    title="Features"
+    icon="stars"
+    href="/features/overview"
+  >
+    Learn about all available features in detail
+  </Card>
+  <Card
+    title="Troubleshooting"
+    icon="wrench"
+    href="/guides/troubleshooting"
+  >
+    Solutions for common issues
+  </Card>
+  <Card
+    title="Advanced usage"
+    icon="graduation-cap"
+    href="/advanced/architecture"
+  >
+    Custom installations and manual configuration
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Tips for best experience
+
+<Tip>
+  **Enable all features** - Unless you're experiencing performance issues, keep all features enabled for maximum visibility.
+</Tip>
+
+<Tip>
+  **Install jq** - The advanced features are worth it. Install jq for the full experience.
+</Tip>
+
+<Tip>
+  **Use preview frequently** - Test changes with `cc-statusline preview` before restarting Claude Code.
+</Tip>
+
+<Tip>
+  **Monitor burn rate** - Keep an eye on the `$/h` metric to stay within your budget.
+</Tip>
+
+<Tip>
+  **Watch context usage** - When it drops below 20%, consider starting a fresh session for better responses.
+</Tip>

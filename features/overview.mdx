@@ -1,0 +1,172 @@
+---
+title: Features Overview
+description: Complete guide to cc-statusline's powerful features for enhancing your Claude Code terminal
+icon: sparkles
+---
+
+## What cc-statusline Offers
+
+cc-statusline transforms your Claude Code terminal into an informative dashboard with real-time project insights, git status, usage tracking, and more.
+
+<CardGroup cols={2}>
+  <Card title="Directory Display" icon="folder" iconType="duotone">
+    Current working directory with `~` home abbreviation
+  </Card>
+  <Card title="Git Integration" icon="code-branch" iconType="duotone">
+    Active branch name and repository status
+  </Card>
+  <Card title="Model Information" icon="robot" iconType="duotone">
+    Claude model name, version, and Claude Code version
+  </Card>
+  <Card title="Context Tracking" icon="brain" iconType="duotone">
+    Real-time context window usage with visual progress bars
+  </Card>
+  <Card title="Cost Monitoring" icon="dollar-sign" iconType="duotone">
+    Live cost tracking with hourly burn rate calculations
+  </Card>
+  <Card title="Session Timer" icon="clock" iconType="duotone">
+    Time remaining until usage limit reset
+  </Card>
+  <Card title="Token Analytics" icon="chart-line" iconType="duotone">
+    Token consumption and tokens-per-minute metrics
+  </Card>
+  <Card title="Color Themes" icon="palette" iconType="duotone">
+    256-color palette support for beautiful terminals
+  </Card>
+</CardGroup>
+
+## Feature Categories
+
+### Core Features (Always Available)
+
+These features work out of the box with minimal dependencies:
+
+- **📁 Directory Display** - Shows your current working directory
+- **🌿 Git Branch** - Displays active git branch (requires git)
+- **🤖 Model Information** - Claude model and version details
+- **📟 Claude Code Version** - Shows which version you're running
+- **🎨 Output Style** - Current output style setting
+
+### Advanced Features (Require jq)
+
+<Warning>
+  Advanced features require [jq](https://jqlang.github.io/jq/) for JSON parsing. Without jq, your statusline will have LIMITED functionality:
+  - ❌ No context remaining percentage
+  - ❌ No token statistics
+  - ❌ No session timer
+  - ⚠️ Basic fallback parser is used (less reliable)
+</Warning>
+
+Install jq to unlock:
+
+- **🧠 Context Usage** - Real-time context window tracking with progress bars
+- **💰 Cost Tracking** - Live cost monitoring with burn rates
+- **📊 Token Analytics** - Token consumption and burn rate metrics
+- **⌛ Session Timer** - Time until usage limit resets (also requires ccusage)
+
+## Example Output
+
+### Default 3-Line Layout
+
+With all features enabled, you get a clean, informative 3-line display:
+
+```bash
+📁 ~/Projects/cc-statusline  🌿 feature/context-usage  🤖 Sonnet 4  📟 v1.0.85  🎨 default
+🧠 Context Remaining: 83% [========--]  ⌛ 3h 7m until reset at 01:00 (37%) [===-------]
+💰 $49.00 ($16.55/h)  📊 14638846 tok (279900 tpm)
+```
+
+<Accordion title="See compact mode example">
+```bash
+📁 ~/my-app  🌿 main  🤖 Claude Sonnet  📟 v1.0.85
+🧠 Context Remaining: 95% [=========-]
+💰 $2.48 ($12.50/h)
+```
+</Accordion>
+
+## Installation Options
+
+<Tabs>
+  <Tab title="Quick Start">
+    The fastest way to get started:
+    
+    ```bash
+    npx @chongdashu/cc-statusline@latest init
+    ```
+    
+    Answer a few questions and you're done!
+  </Tab>
+  
+  <Tab title="Global Installation">
+    Install once, use everywhere:
+    
+    ```bash
+    npm install -g @chongdashu/cc-statusline
+    cc-statusline init
+    ```
+    
+    Choose "Global (~/.claude)" when prompted for installation location.
+  </Tab>
+  
+  <Tab title="Project-Specific">
+    Keep settings per project:
+    
+    ```bash
+    npx @chongdashu/cc-statusline@latest init
+    ```
+    
+    Choose "Project (./.claude)" when prompted (default).
+  </Tab>
+</Tabs>
+
+## Feature Selection
+
+During installation, you can customize which features to enable:
+
+| Feature | Description | Example | Requires |
+|---------|-------------|---------|----------|
+| 📁 **Directory** | Current working directory | `~/my-project` | - |
+| 🌿 **Git Branch** | Active git branch | `feature/statusline` | git |
+| 🤖 **Model** | Claude model name & version | `Sonnet 4` | - |
+| 📟 **Claude Code** | Claude Code version | `v1.0.85` | - |
+| 🎨 **Output Style** | Current output style setting | `default` | - |
+| 🧠 **Context** | Remaining context with progress bar | `83% [========--]` | jq |
+| 💰 **Cost** | Live costs with burn rate | `$49.00 ($16.55/h)` | jq |
+| ⌛ **Session** | Time until reset with progress | `3h 7m until reset` | jq + ccusage |
+| 📊 **Tokens** | Token consumption with burn rate | `14638846 tok (279900 tpm)` | jq |
+
+<Note>
+  All features are pre-selected by default (v1.2.2+). Simply press Enter to accept or use arrow keys and Space to customize.
+</Note>
+
+## Performance Characteristics
+
+cc-statusline is designed for speed:
+
+| Metric | Target | Typical |
+|--------|--------|--------|
+| **Execution Time** | &lt;100ms | 45-80ms |
+| **Memory Usage** | &lt;5MB | ~2MB |
+| **CPU Impact** | Negligible | &lt;1% |
+| **Dependencies** | Minimal | jq only |
+
+<Note>
+  *Benchmarked on macOS with all features enabled*
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Directory & Git Features" icon="folder-tree" href="/features/directory-git">
+    Learn about directory display and git integration
+  </Card>
+  <Card title="Context Tracking" icon="gauge" href="/features/context-tracking">
+    Understand context usage monitoring
+  </Card>
+  <Card title="Cost Monitoring" icon="money-bill" href="/features/cost-monitoring">
+    Track costs and burn rates in real-time
+  </Card>
+  <Card title="Customization" icon="sliders" href="/features/customization">
+    Customize colors, themes, and layouts
+  </Card>
+</CardGroup>

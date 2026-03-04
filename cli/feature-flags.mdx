@@ -1,0 +1,246 @@
+---
+title: Feature Flags
+description: Complete reference for all available statusline features
+---
+
+## Overview
+
+Feature flags control which information is displayed in your statusline. Each feature can be individually enabled or disabled during the interactive setup.
+
+## Feature Selection
+
+Features are selected during `init` via an interactive checkbox prompt (`prompts.ts:18-40`):
+
+```
+Select statusline features (scroll down for more options):
+↑/↓ arrows to navigate, SPACE to toggle, ENTER to continue
+```
+
+**Validation**: At least one feature must be selected.
+
+## Available Features
+
+### Core Information Features
+
+<ParamField path="directory" type="feature" default="checked">
+  **Display**: 📁 Current working directory
+  
+  **Prompt Label**: "📁 Working Directory"
+  
+  **Output Example**: `📁 ~/Projects/my-app`
+  
+  **Details**:
+  - Abbreviates home directory with `~`
+  - Extracted from `workspace.current_dir` or `cwd` in Claude Code JSON
+  - Fallback parser available when jq is not installed
+  
+  **Default**: Checked (enabled by default)
+  
+  **Source**: `prompts.ts:24`
+</ParamField>
+
+<ParamField path="git" type="feature" default="checked">
+  **Display**: 🌿 Current git branch
+  
+  **Prompt Label**: "🌿 Git Branch"
+  
+  **Output Example**: `🌿 feature/statusline`
+  
+  **Details**:
+  - Shows current branch name
+  - Only displays if in a git repository
+  - Requires `git` to be installed
+  
+  **Default**: Checked (enabled by default)
+  
+  **Source**: `prompts.ts:25`
+</ParamField>
+
+<ParamField path="model" type="feature" default="checked">
+  **Display**: 🤖 Claude model name and version
+  
+  **Prompt Label**: "🤖 Model Name & Version"
+  
+  **Output Example**: `🤖 Sonnet 4  🏷️ v1.0.85`
+  
+  **Details**:
+  - Displays `model.display_name` from Claude Code
+  - Shows model version if available
+  - Also displays Claude Code version (📟) and output style (🎨)
+  
+  **Default**: Checked (enabled by default)
+  
+  **Source**: `prompts.ts:26`
+</ParamField>
+
+<ParamField path="context" type="feature" default="checked">
+  **Display**: 🧠 Context window remaining percentage with progress bar
+  
+  **Prompt Label**: "🧠 Context Remaining"
+  
+  **Output Example**: `🧠 Context Remaining: 83% [========--]`
+  
+  **Details**:
+  - Calculates from `context_window.current_usage` and `context_window.context_window_size`
+  - Formula: `input_tokens + cache_creation_input_tokens + cache_read_input_tokens`
+  - Color-coded based on remaining percentage:
+    - **>40%**: Mint green (#158)
+    - **21-40%**: Peach (#215)
+    - **≤20%**: Coral red (#203)
+  - Requires `jq` for calculation
+  
+  **Default**: Checked (enabled by default)
+  
+  **Source**: `prompts.ts:27` | Implementation: `bash-generator.ts:162-199`
+</ParamField>
+
+### Usage Analytics Features
+
+<ParamField path="usage" type="feature" default="checked">
+  **Display**: 💵 Cost in USD
+  
+  **Prompt Label**: "💵 Usage & Cost"
+  
+  **Output Example**: `💰 $49.00` or `💰 $49.00 ($16.55/h)` with burn rate
+  
+  **Details**:
+  - Requires ccusage integration
+  - Shows cumulative cost for current session
+  - Automatically enables `ccusageIntegration` config option
+  
+  **Default**: Checked (enabled by default)
+  
+  **Source**: `prompts.ts:28`
+</ParamField>
+
+<ParamField path="tokens" type="feature" default="checked">
+  **Display**: 📊 Token count and consumption rate
+  
+  **Prompt Label**: "📊 Token Statistics"
+  
+  **Output Example**: `📊 14638846 tok (279900 tpm)`
+  
+  **Details**:
+  - Shows total tokens consumed in session
+  - Displays tokens per minute (tpm) when burn rate is enabled
+  - Requires ccusage integration and jq
+  
+  **Default**: Checked (enabled by default)
+  
+  **Source**: `prompts.ts:29`
+</ParamField>
+
+<ParamField path="burnrate" type="feature" default="checked">
+  **Display**: ⚡ Cost per hour and tokens per minute
+  
+  **Prompt Label**: "⚡ Burn Rate ($/hr & tokens/min)"
+  
+  **Output Example**: `💰 $49.00 ($16.55/h)  📊 14638846 tok (279900 tpm)`
+  
+  **Details**:
+  - Adds hourly cost rate to usage display
+  - Adds tokens per minute to token display
+  - Requires ccusage integration and jq
+  
+  **Default**: Checked (enabled by default)
+  
+  **Source**: `prompts.ts:30`
+</ParamField>
+
+<ParamField path="session" type="feature" default="unchecked">
+  **Display**: ⌛ Session reset countdown with progress bar
+  
+  **Prompt Label**: "⌛ Session Reset Time (requires ccusage)"
+  
+  **Output Example**: `⌛ 3h 7m until reset at 01:00 (37%) [===-------]`
+  
+  **Details**:
+  - Shows time remaining until usage limit resets
+  - Displays reset time and percentage elapsed
+  - Progress bar shown in `detailed` theme (hidden in `minimal`)
+  - **Automatically enables** `ccusageIntegration` when selected (`prompts.ts:67`)
+  - Requires ccusage and jq
+  
+  **Default**: **Unchecked** (disabled by default)
+  
+  **Source**: `prompts.ts:31`
+</ParamField>
+
+## Feature Dependencies
+
+### Requirements by Feature
+
+| Feature | Requires jq | Requires git | Requires ccusage |
+|---------|-------------|--------------|------------------|
+| `directory` | No* | No | No |
+| `git` | No | **Yes** | No |
+| `model` | No* | No | No |
+| `context` | **Yes** | No | No |
+| `usage` | Partial | No | **Yes** |
+| `tokens` | **Yes** | No | **Yes** |
+| `burnrate` | **Yes** | No | **Yes** |
+| `session` | **Yes** | No | **Yes** |
+
+*Fallback parser available but less reliable
+
+### Automatic Enablement
+
+Certain features automatically enable configuration options:
+
+```typescript
+// From prompts.ts:67
+const needsCcusage = config.features.includes('session')
+
+return {
+  // ... other config
+  ccusageIntegration: needsCcusage
+}
+```
+
+**Note**: While only `session` auto-enables ccusage integration, the features `usage`, `tokens`, and `burnrate` also require it to function.
+
+## Feature Implementation
+
+Features are conditionally compiled into the bash script by `generateBashStatusline()` in `bash-generator.ts:9`:
+
+```typescript
+const hasGit = config.features.includes('git')
+const hasUsage = config.features.some(f => 
+  ['usage', 'session', 'tokens', 'burnrate'].includes(f)
+)
+const hasDirectory = config.features.includes('directory')
+const hasModel = config.features.includes('model')
+const hasContext = config.features.includes('context')
+```
+
+Only the selected features' code is included in the generated script, keeping it lightweight and fast.
+
+## Output Layout
+
+Features are displayed in a 3-line modern layout (v1.2.2+):
+
+**Line 1**: Core information
+- Directory, Git, Model, Claude Code version, Output style
+
+**Line 2**: Context and session
+- Context remaining, Session reset time
+
+**Line 3**: Usage analytics
+- Cost (with burn rate), Token stats (with tpm)
+
+## Default Feature Set
+
+As of v1.2.2+, most features are pre-selected:
+
+```typescript
+checked: true  // directory, git, model, context, usage, tokens, burnrate
+checked: false // session only
+```
+
+This provides a comprehensive statusline out of the box while keeping the session timer opt-in.
+
+## Related
+
+- [Configuration Options](/cli/config-options) - Full config reference
+- [Themes](/cli/themes) - How themes affect feature display
+- [Init Command](/cli/init) - Interactive feature selection

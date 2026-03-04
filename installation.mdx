@@ -1,0 +1,422 @@
+---
+title: Installation
+description: Complete installation guide with prerequisites and platform-specific instructions
+---
+
+## Prerequisites
+
+### Required
+
+<CardGroup cols={2}>
+  <Card title="Node.js 16+" icon="node-js">
+    Required for the CLI tool to run
+  </Card>
+  <Card title="Claude Code" icon="anthropic">
+    The AI coding assistant you're already using
+  </Card>
+</CardGroup>
+
+<Steps>
+  <Step title="Verify Node.js installation">
+    Check your Node.js version:
+    
+    ```bash
+    node --version
+    ```
+    
+    Expected output:
+    ```bash
+    v16.0.0 # or higher
+    ```
+    
+    <Info>
+      If you don't have Node.js installed, download it from [nodejs.org](https://nodejs.org/)
+    </Info>
+  </Step>
+</Steps>
+
+### Strongly recommended: jq
+
+`jq` is a lightweight JSON processor that enables advanced features. Without it, your statusline will have limited functionality.
+
+<CardGroup cols={2}>
+  <Card title="With jq" icon="check" color="#10b981">
+    - ✓ Context remaining percentage
+    - ✓ Token statistics
+    - ✓ Session timer
+    - ✓ Full feature set
+  </Card>
+  <Card title="Without jq" icon="xmark" color="#ef4444">
+    - ✗ No context tracking
+    - ✗ No token stats
+    - ✗ No session timer
+    - ⚠️ Basic fallback parser
+  </Card>
+</CardGroup>
+
+<Warning>
+  While cc-statusline works without `jq`, you'll miss out on the most valuable features. We strongly recommend installing it.
+</Warning>
+
+<Tabs>
+  <Tab title="macOS">
+    Install jq using Homebrew:
+    
+    ```bash
+    brew install jq
+    ```
+    
+    Verify installation:
+    ```bash
+    jq --version
+    # Output: jq-1.6 or higher
+    ```
+  </Tab>
+  
+  <Tab title="Linux">
+    <CodeGroup>
+    ```bash Ubuntu/Debian
+    sudo apt-get install jq
+    ```
+    
+    ```bash CentOS/RHEL/Fedora
+    sudo yum install jq
+    ```
+    
+    ```bash Arch Linux
+    sudo pacman -S jq
+    ```
+    </CodeGroup>
+    
+    Verify installation:
+    ```bash
+    jq --version
+    # Output: jq-1.6 or higher
+    ```
+  </Tab>
+  
+  <Tab title="Windows">
+    <Accordion title="Option 1: Package Manager (Recommended)">
+      <CodeGroup>
+      ```powershell Chocolatey
+      choco install jq
+      ```
+      
+      ```powershell Scoop
+      scoop install jq
+      ```
+      
+      ```powershell Winget
+      winget install jqlang.jq
+      ```
+      </CodeGroup>
+    </Accordion>
+    
+    <Accordion title="Option 2: Manual Download">
+      <Steps>
+        <Step title="Download jq">
+          Go to the [jq releases page](https://github.com/jqlang/jq/releases/latest) and download:
+          - **64-bit**: `jq-windows-amd64.exe`
+          - **32-bit**: `jq-windows-i386.exe`
+        </Step>
+        
+        <Step title="Rename the file">
+          Rename the downloaded file to `jq.exe`
+        </Step>
+        
+        <Step title="Add to PATH">
+          Place `jq.exe` in `C:\Windows\System32\` (requires admin) or add its location to your PATH environment variable
+        </Step>
+        
+        <Step title="Verify">
+          ```powershell
+          jq --version
+          # Output: jq-1.6 or higher
+          ```
+        </Step>
+      </Steps>
+    </Accordion>
+  </Tab>
+</Tabs>
+
+### Optional dependencies
+
+<AccordionGroup>
+  <Accordion title="git - For branch display">
+    Most developers already have git installed. Verify with:
+    
+    ```bash
+    git --version
+    ```
+    
+    If not installed, download from [git-scm.com](https://git-scm.com/)
+  </Accordion>
+  
+  <Accordion title="ccusage - For session reset tracking">
+    ccusage is used for session reset time tracking. It works via `npx` with no installation needed:
+    
+    ```bash
+    npx ccusage@latest --version
+    ```
+    
+    <Info>
+      ccusage is optional and only needed for the session timer feature. All other features (including cost tracking) work without it.
+    </Info>
+  </Accordion>
+</AccordionGroup>
+
+## Installation options
+
+cc-statusline can be installed globally or on a per-project basis.
+
+<Tabs>
+  <Tab title="Quick install (recommended)">
+    Run the interactive installer with npx (no global installation needed):
+    
+    ```bash
+    npx @chongdashu/cc-statusline@latest init
+    ```
+    
+    This command:
+    1. Prompts you for configuration preferences
+    2. Generates an optimized bash script
+    3. Installs to `.claude/statusline.sh` (project) or `~/.claude/statusline.sh` (global)
+    4. Updates `settings.json` automatically
+    
+    <Tip>
+      The installer will ask whether you want a project-level or global installation. Choose project-level for per-project customization.
+    </Tip>
+  </Tab>
+  
+  <Tab title="Global installation">
+    Install cc-statusline globally for use across all projects:
+    
+    ```bash
+    npm install -g @chongdashu/cc-statusline
+    ```
+    
+    Then run the initializer:
+    
+    ```bash
+    cc-statusline init
+    ```
+    
+    <Info>
+      Global installation is convenient if you want the same statusline configuration across all your Claude Code projects.
+    </Info>
+  </Tab>
+  
+  <Tab title="Custom installation">
+    Generate a statusline to a custom location:
+    
+    ```bash
+    npx @chongdashu/cc-statusline@latest init --output ./my-statusline.sh
+    ```
+    
+    Skip auto-installation (manual setup):
+    
+    ```bash
+    npx @chongdashu/cc-statusline@latest init --no-install
+    ```
+    
+    <Note>
+      With `--no-install`, you'll need to manually update your `.claude/settings.json` file.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Installation process
+
+<Steps>
+  <Step title="Run the installer">
+    Execute the installation command:
+    
+    ```bash
+    npx @chongdashu/cc-statusline@latest init
+    ```
+  </Step>
+  
+  <Step title="Choose installation location">
+    The installer will ask where to install:
+    
+    ```bash
+    ? Where would you like to install the statusline?
+    ❯ Project-level (.claude/ in current directory)
+      Global (~/.claude/ in home directory)
+    ```
+    
+    <Tip>
+      Choose **project-level** for per-project customization or **global** to use the same statusline everywhere.
+    </Tip>
+  </Step>
+  
+  <Step title="Select features">
+    Choose which features to enable (all are pre-selected by default):
+    
+    ```bash
+    ? Select the features you want to include:
+    ◉ Directory display
+    ◉ Git branch
+    ◉ Model name & Claude Code version
+    ◉ Output style
+    ◉ Context usage (requires jq)
+    ◉ Cost & burn rate
+    ◯ Session reset time (requires ccusage)
+    ◉ Token statistics
+    ```
+    
+    <Info>
+      Use Space to toggle features, Enter to confirm.
+    </Info>
+  </Step>
+  
+  <Step title="Installation completes">
+    The installer will:
+    - Generate your custom statusline script
+    - Create `.claude/statusline.sh` with execute permissions
+    - Update `.claude/settings.json` with the statusline configuration
+    - Display a success message
+    
+    ```bash
+    ✓ Statusline generated successfully!
+    ✓ Settings updated in .claude/settings.json
+    
+    🎉 Installation complete!
+    
+    Restart Claude Code to see your new statusline.
+    ```
+  </Step>
+  
+  <Step title="Restart Claude Code">
+    <Warning>
+      You must restart Claude Code for the statusline to appear.
+    </Warning>
+  </Step>
+</Steps>
+
+## File structure
+
+After installation, you'll have the following files:
+
+```
+.claude/
+├── statusline.sh    # Your generated statusline script
+└── settings.json    # Auto-updated Claude Code configuration
+```
+
+<Accordion title="View generated statusline.sh">
+  ```bash
+  #!/usr/bin/env bash
+  # Generated by cc-statusline v1.4.0
+  # https://www.npmjs.com/package/@chongdashu/cc-statusline
+  # Generated at: 2025-08-28T10:30:45.123Z
+  
+  # Read JSON input from Claude Code
+  input=$(cat)
+  
+  # Extract directory
+  dir=$(echo "$input" | jq -r '.workspace.current_dir // "unknown"')
+  dir=${dir/#$HOME/\~}
+  
+  # Extract git branch
+  branch=$(git -C "$(pwd)" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+  
+  # Extract model name
+  model=$(echo "$input" | jq -r '.model.display_name // "unknown"')
+  
+  # Display statusline
+  echo "📁 $dir  🌿 $branch  🤖 $model"
+  ```
+</Accordion>
+
+<Accordion title="View settings.json configuration">
+  ```json
+  {
+    "statusLine": {
+      "type": "command",
+      "command": ".claude/statusline.sh",
+      "padding": 0
+    }
+  }
+  ```
+</Accordion>
+
+## Manual configuration
+
+If auto-configuration fails, you can manually update your `.claude/settings.json`:
+
+<CodeGroup>
+```json Linux/macOS
+{
+  "statusLine": {
+    "type": "command",
+    "command": ".claude/statusline.sh",
+    "padding": 0
+  }
+}
+```
+
+```json Windows
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash .claude/statusline.sh",
+    "padding": 0
+  }
+}
+```
+</CodeGroup>
+
+<Note>
+  Windows users need to prefix the command with `bash` to ensure the script runs in a bash environment (Git Bash, WSL, etc.).
+</Note>
+
+## Verify installation
+
+Preview your statusline before restarting Claude Code:
+
+```bash
+cc-statusline preview .claude/statusline.sh
+```
+
+Expected output:
+```bash
+📊 Testing statusline with mock data...
+
+📁 ~/Projects/my-app  🌿 main  🤖 Sonnet 4  📟 v1.0.85
+🧠 Context Remaining: 75% [=======---]
+💰 $12.34 ($25.68/h)
+
+✓ Statusline executed successfully
+⚡ Execution time: 67ms
+✓ Performance: Excellent (< 100ms)
+```
+
+## Safety features
+
+cc-statusline includes several safety mechanisms:
+
+<CardGroup cols={2}>
+  <Card title="Safe updates" icon="shield-check">
+    Never overwrites existing statuslines without confirmation
+  </Card>
+  <Card title="Settings protection" icon="lock">
+    Preserves your existing settings.json configurations
+  </Card>
+  <Card title="Conflict detection" icon="triangle-exclamation">
+    Warns when other statuslines are configured
+  </Card>
+  <Card title="Smart defaults" icon="lightbulb">
+    Project-level installation by default for safety
+  </Card>
+</CardGroup>
+
+## Next steps
+
+<Card
+  title="Quick start guide"
+  icon="rocket"
+  href="/quickstart"
+>
+  Learn how to use cc-statusline in under 60 seconds
+</Card>

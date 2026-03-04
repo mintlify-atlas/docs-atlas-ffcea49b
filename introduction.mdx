@@ -1,0 +1,167 @@
+---
+title: Introduction
+description: A beautiful, informative statusline for Claude Code with real-time tracking
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.svg"
+  alt="cc-statusline hero"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.svg"
+  alt="cc-statusline hero"
+/>
+
+## Transform your Claude Code terminal
+
+cc-statusline enhances your Claude Code terminal with a beautiful, informative statusline that displays real-time information about your current session. Track your directory, git branch, AI model, context usage, costs, and session time - all at a glance.
+
+<CardGroup cols={2}>
+  <Card
+    title="Quick start"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get up and running in under 60 seconds with one command
+  </Card>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Detailed installation guide with prerequisites and setup
+  </Card>
+  <Card
+    title="Configuration"
+    icon="gear"
+    href="/guides/configuration"
+  >
+    Customize your statusline with powerful options
+  </Card>
+  <Card
+    title="Troubleshooting"
+    icon="wrench"
+    href="/guides/troubleshooting"
+  >
+    Common issues and their solutions
+  </Card>
+</CardGroup>
+
+## What you get
+
+Enhance your Claude Code terminal with essential information displayed in a clean, colorful format:
+
+### Core features
+
+<CardGroup cols={2}>
+  <Card title="Directory display" icon="folder">
+    Current working directory with `~` abbreviation for your home folder
+  </Card>
+  <Card title="Git integration" icon="code-branch">
+    Active git branch name for version control awareness
+  </Card>
+  <Card title="Model information" icon="robot">
+    Shows which Claude model you're using plus Claude Code version
+  </Card>
+  <Card title="Output style" icon="paintbrush">
+    Current output style setting (default, XML, JSON, etc.)
+  </Card>
+</CardGroup>
+
+### Advanced tracking
+
+<CardGroup cols={2}>
+  <Card title="Context usage" icon="brain">
+    Real-time context window usage with visual progress bars
+  </Card>
+  <Card title="Cost tracking" icon="dollar-sign">
+    Live cost monitoring with burn rates ($/hour) for budget awareness
+  </Card>
+  <Card title="Session timer" icon="clock">
+    Time remaining until usage limit resets with countdown
+  </Card>
+  <Card title="Token analytics" icon="chart-line">
+    Token consumption and tokens per minute (TPM) metrics
+  </Card>
+</CardGroup>
+
+<Info>
+  Most features work out of the box. Advanced features like context tracking and session timer require `jq` (a lightweight JSON processor).
+</Info>
+
+## Example output
+
+### Modern 3-line layout
+
+```bash
+📁 ~/Projects/cc-statusline  🌿 feature/docs  🤖 Sonnet 4  📟 v1.0.85  🎨 default
+🧠 Context Remaining: 83% [========--]  ⌛ 3h 7m until reset at 01:00 (37%) [===-------]
+💰 $49.00 ($16.55/h)  📊 14638846 tok (279900 tpm)
+```
+
+### Compact mode
+
+```bash
+📁 ~/my-app  🌿 main  🤖 Claude Sonnet  📟 v1.0.85
+🧠 Context Remaining: 95% [=========-]
+💰 $2.48 ($12.50/h)
+```
+
+## Why cc-statusline?
+
+<CardGroup cols={3}>
+  <Card title="Fast" icon="bolt">
+    Optimized bash execution in under 100ms
+  </Card>
+  <Card title="Lightweight" icon="feather">
+    Minimal memory footprint (~2MB)
+  </Card>
+  <Card title="Reliable" icon="shield-check">
+    Graceful fallbacks when dependencies are missing
+  </Card>
+  <Card title="Customizable" icon="sliders">
+    Choose exactly which features you want
+  </Card>
+  <Card title="Secure" icon="lock">
+    No network requests except ccusage integration
+  </Card>
+  <Card title="Zero config" icon="magic">
+    Auto-installs and configures Claude Code settings
+  </Card>
+</CardGroup>
+
+## Performance
+
+Built for speed with minimal resource impact:
+
+| Metric | Target | Typical |
+|--------|--------|--------|
+| Execution time | &lt;100ms | 45-80ms |
+| Memory usage | &lt;5MB | ~2MB |
+| CPU impact | Negligible | &lt;1% |
+| Dependencies | Minimal | jq only |
+
+<Tip>
+  Benchmarked on macOS with all features enabled. Your performance may vary based on system configuration.
+</Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quick start guide"
+    icon="play"
+    href="/quickstart"
+  >
+    Install and configure in under 60 seconds
+  </Card>
+  <Card
+    title="Installation guide"
+    icon="book"
+    href="/installation"
+  >
+    Detailed prerequisites and installation options
+  </Card>
+</CardGroup>

@@ -1,0 +1,515 @@
+---
+title: Customization Options
+description: Customize colors, themes, emojis, and layout to match your preferences
+icon: palette
+---
+
+## Overview
+
+cc-statusline offers extensive customization options to personalize your terminal experience while maintaining optimal performance.
+
+## Installation-Time Customization
+
+During the `init` process, you'll be asked to configure:
+
+### Feature Selection
+
+From `cli/prompts.ts:18-40`:
+
+```typescript
+{
+  type: 'checkbox',
+  name: 'features',
+  message: 'Select statusline features (scroll down for more options):',
+  choices: [
+    { name: '📁 Working Directory', value: 'directory', checked: true },
+    { name: '🌿 Git Branch', value: 'git', checked: true },
+    { name: '🤖 Model Name & Version', value: 'model', checked: true },
+    { name: '🧠 Context Remaining', value: 'context', checked: true },
+    { name: '💵 Usage & Cost', value: 'usage', checked: true },
+    { name: '📊 Token Statistics', value: 'tokens', checked: true },
+    { name: '⚡ Burn Rate ($/hr & tokens/min)', value: 'burnrate', checked: true },
+    { name: '⌛ Session Reset Time (requires ccusage)', value: 'session', checked: false }
+  ]
+}
+```
+
+<Note>
+  Use ↑/↓ arrow keys to navigate, SPACE to toggle selection, and ENTER to continue.
+</Note>
+
+### Color Scheme
+
+From `cli/prompts.ts:42-46`:
+
+```typescript
+{
+  type: 'confirm',
+  name: 'colors',
+  message: '🎨 Enable modern color scheme and emojis?',
+  default: true
+}
+```
+
+**When enabled**:
+- 256-color ANSI palette
+- Emoji indicators (📁 🌿 🤖 💰 etc.)
+- Color-coded warnings (context, session)
+- Syntax-highlighted values
+
+**When disabled**:
+- Plain text output
+- Text prefixes instead of emojis (`dir:`, `git:`, `$`, `tok:`)
+- No ANSI color codes
+
+### Debug Logging
+
+From `cli/prompts.ts:48-52`:
+
+```typescript
+{
+  type: 'confirm',
+  name: 'logging',
+  message: '📝 Enable debug logging to .claude/statusline.log?',
+  default: false
+}
+```
+
+<Warning>
+  Debug logging can create large log files over time. Enable only when troubleshooting issues.
+</Warning>
+
+### Installation Location
+
+From `cli/prompts.ts:54-62`:
+
+```typescript
+{
+  type: 'list',
+  name: 'installLocation',
+  message: '📍 Where would you like to install the statusline?',
+  choices: [
+    { name: '🏠 Global (~/.claude) - Use across all projects', value: 'global' },
+    { name: '📂 Project (./.claude) - Only for this project', value: 'project' }
+  ],
+  default: 'project'
+}
+```
+
+<Tabs>
+  <Tab title="Project (./.claude)">
+    **Recommended for most users**
+    
+    Pros:
+    - Settings stay with the project
+    - Different statuslines per project
+    - Safe updates (no global conflicts)
+    - Easy to share via git
+    
+    Cons:
+    - Need to install in each project
+    - Multiple copies of the script
+  </Tab>
+  
+  <Tab title="Global (~/.claude)">
+    **For consistent experience everywhere**
+    
+    Pros:
+    - One installation for all projects
+    - Consistent statusline everywhere
+    - Easy to update globally
+    
+    Cons:
+    - Can't customize per-project
+    - Updates affect all projects
+    - May conflict with project settings
+  </Tab>
+</Tabs>
+
+## Color System
+
+### Modern 256-Color Palette
+
+cc-statusline uses carefully selected colors from the 256-color ANSI palette:
+
+From `features/colors.ts:26-36`:
+
+```typescript
+export function generateBasicColors(): string {
+  return `
+# ---- modern sleek colors ----
+dir_color() { if [ "$use_color" -eq 1 ]; then printf '\\033[38;5;117m'; fi; }    # sky blue
+model_color() { if [ "$use_color" -eq 1 ]; then printf '\\033[38;5;147m'; fi; }  # light purple  
+version_color() { if [ "$use_color" -eq 1 ]; then printf '\\033[38;5;180m'; fi; } # soft yellow
+cc_version_color() { if [ "$use_color" -eq 1 ]; then printf '\\033[38;5;249m'; fi; } # light gray
+style_color() { if [ "$use_color" -eq 1 ]; then printf '\\033[38;5;245m'; fi; } # gray
+rst() { if [ "$use_color" -eq 1 ]; then printf '\\033[0m'; fi; }
+`
+}
+```
+
+### Color Reference Table
+
+| Element | Color Name | ANSI Code | RGB Approx | Use Case |
+|---------|-----------|-----------|-----------|----------|
+| Directory | Sky Blue | 38;5;117 | #87d7ff | Current path |
+| Git Branch | Soft Green | 38;5;150 | #afd787 | Branch name |
+| Model | Light Purple | 38;5;147 | #afafff | Model name |
+| Version | Soft Yellow | 38;5;180 | #d7af87 | Version numbers |
+| CC Version | Light Gray | 38;5;249 | #b2b2b2 | Claude Code version |
+| Output Style | Gray | 38;5;245 | #8a8a8a | Style setting |
+| Usage/Tokens | Lavender | 38;5;189 | #d7d7ff | Token counts |
+| Cost | Light Gold | 38;5;222 | #ffd787 | Dollar amounts |
+| Burn Rate | Bright Gold | 38;5;220 | #ffd700 | Highlighted rates |
+
+### Dynamic Colors
+
+Some elements change color based on status:
+
+#### Context Remaining Colors
+
+From `bash-generator.ts:187-193`:
+
+```bash
+# Set color based on remaining percentage
+if [ "$context_remaining_pct" -le 20 ]; then
+  context_color() { if [ "$use_color" -eq 1 ]; then printf '\033[38;5;203m'; fi; }  # coral red
+elif [ "$context_remaining_pct" -le 40 ]; then
+  context_color() { if [ "$use_color" -eq 1 ]; then printf '\033[38;5;215m'; fi; }  # peach
+else
+  context_color() { if [ "$use_color" -eq 1 ]; then printf '\033[38;5;158m'; fi; }  # mint green
+fi
+```
+
+| Remaining | Color | Code | Visual |
+|-----------|-------|------|--------|
+| 0-20% | Coral Red | 38;5;203 | 🔴 Critical |
+| 21-40% | Peach | 38;5;215 | 🟡 Warning |
+| 41-100% | Mint Green | 38;5;158 | 🟢 Healthy |
+
+#### Session Timer Colors
+
+From `features/usage.ts:18-24`:
+
+```bash
+session_color() { 
+  rem_pct=$(( 100 - session_pct ))
+  if   (( rem_pct <= 10 )); then SCLR='38;5;210'  # light pink
+  elif (( rem_pct <= 25 )); then SCLR='38;5;228'  # light yellow  
+  else                          SCLR='38;5;194'; fi  # light green
+  if [ "$use_color" -eq 1 ]; then printf '\033[%sm' "$SCLR"; fi
+}
+```
+
+| Time Left | Color | Code | Visual |
+|-----------|-------|------|--------|
+| 0-10% | Light Pink | 38;5;210 | ⏰ Almost reset |
+| 11-25% | Light Yellow | 38;5;228 | ⚡ Getting close |
+| 26-100% | Light Green | 38;5;194 | ✅ Plenty of time |
+
+## NO_COLOR Support
+
+From `features/colors.ts:17-23`:
+
+```typescript
+export function generateColorBashCode(config: ColorConfig): string {
+  return `
+# ---- color helpers (force colors for Claude Code) ----
+use_color=1
+[ -n "$NO_COLOR" ] && use_color=0
+
+C() { if [ "$use_color" -eq 1 ]; then printf '\\033[%sm' "$1"; fi; }
+RST() { if [ "$use_color" -eq 1 ]; then printf '\\033[0m'; fi; }
+`
+}
+```
+
+<Accordion title="Respecting NO_COLOR standard">
+  cc-statusline follows the [NO_COLOR standard](https://no-color.org/):
+  
+  ```bash
+  # Disable colors temporarily
+  NO_COLOR=1
+  
+  # Disable colors permanently (add to ~/.bashrc or ~/.zshrc)
+  export NO_COLOR=1
+  ```
+  
+  When `NO_COLOR` is set:
+  - All ANSI color codes are suppressed
+  - Emojis are replaced with text prefixes
+  - Progress bars remain (using ASCII characters)
+  - All information is still displayed
+</Accordion>
+
+## Layout Customization
+
+### 3-Line Modern Layout (Default)
+
+From `bash-generator.ts:217-292`:
+
+```bash
+# Line 1: Core info (directory, git, model, claude code version, output style)
+# Line 2: Context and session time  
+# Line 3: Cost and usage analytics
+```
+
+**Example**:
+```
+📁 ~/Projects/cc-statusline  🌿 main  🤖 Sonnet 4  📟 v1.0.85  🎨 default
+🧠 Context Remaining: 83% [========--]  ⌛ 3h 7m until reset at 01:00 (37%) [===-------]
+💰 $49.00 ($16.55/h)  📊 14638846 tok (279900 tpm)
+```
+
+### Compact Variant (Fewer Features)
+
+**Example**:
+```
+📁 ~/my-app  🌿 main  🤖 Claude Sonnet  📟 v1.0.85
+🧠 Context Remaining: 95% [=========-]
+💰 $2.48 ($12.50/h)
+```
+
+## Theme System
+
+From `features/colors.ts:63-90`:
+
+```typescript
+export function getThemeColors(theme: 'minimal' | 'detailed' | 'compact') {
+  switch (theme) {
+    case 'minimal':
+      return {
+        directory: COLOR_CODES.CYAN,
+        git: COLOR_CODES.GREEN,
+        model: COLOR_CODES.MAGENTA,
+        usage: COLOR_CODES.YELLOW,
+        session: COLOR_CODES.BLUE
+      }
+    case 'detailed':
+      return {
+        directory: COLOR_CODES.BRIGHT_CYAN,
+        git: COLOR_CODES.BRIGHT_GREEN,
+        model: COLOR_CODES.BRIGHT_MAGENTA,
+        usage: COLOR_CODES.BRIGHT_YELLOW,
+        session: COLOR_CODES.BRIGHT_BLUE
+      }
+    case 'compact':
+      return {
+        directory: COLOR_CODES.CYAN,
+        git: COLOR_CODES.GREEN,
+        model: COLOR_CODES.BLUE,
+        usage: COLOR_CODES.YELLOW,
+        session: COLOR_CODES.RED
+      }
+  }
+}
+```
+
+<Note>
+  Currently, the theme is hardcoded to `'detailed'` in the generator. Future versions may expose theme selection during installation.
+</Note>
+
+## Manual Customization
+
+You can manually edit `.claude/statusline.sh` to customize:
+
+### Change Emojis
+
+```bash
+# Find lines like:
+printf '📁 %s%s%s' "$(dir_color)" "$current_dir" "$(rst)"
+
+# Change to:
+printf '🔧 %s%s%s' "$(dir_color)" "$current_dir" "$(rst)"
+```
+
+### Adjust Color Codes
+
+```bash
+# Find color function:
+dir_color() { if [ "$use_color" -eq 1 ]; then printf '\033[38;5;117m'; fi; }
+
+# Change to different color (e.g., bright cyan - 51):
+dir_color() { if [ "$use_color" -eq 1 ]; then printf '\033[38;5;51m'; fi; }
+```
+
+<Accordion title="Finding ANSI 256 color codes">
+  To see all 256 colors in your terminal:
+  
+  ```bash
+  # Print all 256 colors
+  for i in {0..255}; do
+    printf "\033[38;5;%sm%3d " "$i" "$i"
+    [ $(( (i + 1) % 16 )) -eq 0 ] && echo
+  done
+  printf "\033[0m\n"
+  ```
+  
+  Pick your favorite color code and use it in the statusline!
+</Accordion>
+
+### Modify Progress Bar Width
+
+```bash
+# Find progress bar calls:
+context_bar=$(progress_bar "$context_remaining_pct" 10)
+
+# Change width (default 10, try 20 for longer bar):
+context_bar=$(progress_bar "$context_remaining_pct" 20)
+```
+
+### Reorder Lines
+
+You can rearrange the output lines in the display section:
+
+```bash
+# Default order:
+# Line 1: directory, git, model, version, style
+# Line 2: context, session
+# Line 3: cost, tokens
+
+# Custom order - swap lines 2 and 3:
+if [ -n "$line3" ]; then
+  printf '\n%s' "$line3"  # Cost first
+fi
+if [ -n "$line2" ]; then
+  printf '\n%s' "$line2"  # Context second
+fi
+```
+
+## Configuration Summary Display
+
+From `cli/prompts.ts:81-96`:
+
+```typescript
+export function displayConfigSummary(config: StatuslineConfig): void {
+  console.log('\n✅ Configuration Summary:')
+  console.log(`   Runtime: ${config.runtime}`)
+  console.log(`   Theme: ${config.theme}`)
+  console.log(`   Colors: ${config.colors ? '✅' : '❌'}`)
+  console.log(`   Features: ${config.features.join(', ')}`)
+
+  if (config.ccusageIntegration) {
+    console.log('   ⚠️  Session reset time requires ccusage (npx ccusage@latest)')
+  }
+
+  if (config.logging) {
+    console.log('   📝 Debug logging enabled')
+  }
+}
+```
+
+This summary appears after you complete the init process, showing your selections.
+
+## Preview Your Changes
+
+Before committing to customizations, test them:
+
+```bash
+cc-statusline preview .claude/statusline.sh
+```
+
+**What preview does**:
+1. Loads your statusline script
+2. Runs it with realistic mock data
+3. Shows exactly what the output will look like
+4. Reports performance metrics
+
+<Note>
+  Always preview after manual edits to catch syntax errors before they break your statusline!
+</Note>
+
+## Performance Impact of Features
+
+| Feature | Overhead | Dependencies | Recommendation |
+|---------|----------|--------------|----------------|
+| Directory | ~1ms | None | Always enable |
+| Git | ~5-15ms | git | Enable if using git |
+| Model | ~1ms | None | Always enable |
+| Context | ~5-10ms | jq | Enable with jq |
+| Cost | ~10-15ms | jq | Enable with jq |
+| Tokens | ~5ms | jq | Enable with jq |
+| Session | ~100ms | jq + ccusage | Enable only if needed |
+
+<Warning>
+  **Session timer** adds the most overhead (~100ms). Disable if statusline feels slow.
+</Warning>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Start with Defaults" icon="play">
+    Begin with all features enabled, then disable what you don't need
+  </Card>
+  
+  <Card title="Use Preview" icon="eye">
+    Always preview after making manual changes
+  </Card>
+  
+  <Card title="Enable Logging When Debugging" icon="bug">
+    Turn on debug logging only when troubleshooting
+  </Card>
+  
+  <Card title="Respect NO_COLOR" icon="ban">
+    Test your statusline with NO_COLOR=1 for accessibility
+  </Card>
+</CardGroup>
+
+## Troubleshooting Customizations
+
+<AccordionGroup>
+  <Accordion title="Statusline not showing after edit">
+    **Likely cause**: Syntax error in bash script
+    
+    **Debug**:
+    ```bash
+    # Test the script manually
+    echo '{}' | .claude/statusline.sh
+    
+    # Check for errors
+    bash -n .claude/statusline.sh
+    ```
+    
+    Common mistakes:
+    - Missing quotes
+    - Unclosed parentheses
+    - Wrong variable names
+  </Accordion>
+  
+  <Accordion title="Colors not working">
+    **Check**:
+    1. Is `NO_COLOR` set? `echo $NO_COLOR`
+    2. Does terminal support 256 colors? `echo $TERM`
+    3. Is `use_color` being set correctly?
+    
+    **Fix**:
+    ```bash
+    # Force colors on
+    unset NO_COLOR
+    
+    # Check terminal type
+    export TERM=xterm-256color
+    ```
+  </Accordion>
+  
+  <Accordion title="Want to reset to defaults">
+    Simply re-run the init command:
+    
+    ```bash
+    npx @chongdashu/cc-statusline@latest init
+    ```
+    
+    Your previous statusline will be backed up, and a fresh one generated.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Features Overview" icon="sparkles" href="/features/overview">
+    Review all available features
+  </Card>
+  <Card title="Advanced Usage" icon="terminal" href="/guides/preview">
+    Learn about preview and testing
+  </Card>
+</CardGroup>

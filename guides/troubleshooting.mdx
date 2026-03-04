@@ -1,0 +1,640 @@
+---
+title: Troubleshooting Guide
+description: Solutions for common cc-statusline issues and problems
+icon: wrench
+---
+
+## Quick Diagnostics
+
+Before diving into specific issues, run these checks:
+
+<Steps>
+  <Step title="Verify Installation">
+    ```bash
+    ls -la .claude/statusline.sh
+    cat .claude/settings.json
+    ```
+  </Step>
+  
+  <Step title="Test Script Manually">
+    ```bash
+    echo '{}' | .claude/statusline.sh
+    ```
+  </Step>
+  
+  <Step title="Check Dependencies">
+    ```bash
+    jq --version
+    git --version
+    node --version
+    ```
+  </Step>
+  
+  <Step title="Preview Output">
+    ```bash
+    cc-statusline preview .claude/statusline.sh
+    ```
+  </Step>
+</Steps>
+
+## Common Issues
+
+### Statusline Not Showing
+
+From README.md:228-232, this is the most common issue.
+
+<AccordionGroup>
+  <Accordion title="1. Restart Claude Code" icon="rotate">
+    **Symptom:** Statusline doesn't appear after installation
+    
+    **Solution:** Always restart Claude Code after installation
+    
+    ```bash
+    # Exit Claude Code completely and restart
+    # Changes only take effect on restart
+    ```
+    
+    <Info>Claude Code only reads settings.json on startup</Info>
+  </Accordion>
+  
+  <Accordion title="2. Verify Settings" icon="gear">
+    **Symptom:** Statusline still not showing after restart
+    
+    **Solution:** Check `.claude/settings.json` contains correct configuration
+    
+    ```bash
+    cat .claude/settings.json
+    ```
+    
+    Should contain:
+    ```json
+    {
+      "statusLine": {
+        "type": "command",
+        "command": ".claude/statusline.sh",
+        "padding": 0
+      }
+    }
+    ```
+    
+    <Warning>Ensure the command path matches your installation type (global vs project)</Warning>
+  </Accordion>
+  
+  <Accordion title="3. Check Permissions" icon="lock">
+    **Symptom:** Script exists but doesn't execute
+    
+    **Solution:** Ensure script is executable
+    
+    ```bash
+    chmod +x .claude/statusline.sh
+    ```
+    
+    Verify:
+    ```bash
+    ls -la .claude/statusline.sh
+    # Should show: -rwxr-xr-x (executable)
+    ```
+  </Accordion>
+  
+  <Accordion title="4. Manual Configuration" icon="wrench">
+    **Symptom:** Auto-configuration failed during installation
+    
+    **Solution:** Manually add configuration to `.claude/settings.json`
+    
+    From README.md:217-224:
+    ```json
+    {
+      "statusLine": {
+        "type": "command",
+        "command": ".claude/statusline.sh",
+        "padding": 0
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Performance Issues
+
+From README.md:234-237, slow statusline execution.
+
+<AccordionGroup>
+  <Accordion title="Test Performance" icon="gauge">
+    **Symptom:** Statusline is slow to update
+    
+    **Diagnostic:**
+    ```bash
+    cc-statusline preview .claude/statusline.sh
+    ```
+    
+    Look for execution time in output:
+    ```
+    📊 Performance: 🚀 excellent (67ms)
+    ```
+    
+    **Performance targets from README.md:246-253:**
+    - Excellent: &lt;100ms ✅
+    - Good: 100-500ms ⚠️
+    - Slow: &gt;500ms 🐌
+  </Accordion>
+  
+  <Accordion title="Optimize Features" icon="sliders">
+    **Solution:** Disable expensive features
+    
+    Heavy features in order of impact:
+    1. **ccusage integration** - Network requests, spawns external process
+    2. **Token statistics** - Requires parsing large usage data
+    3. **Session reset time** - Complex time calculations
+    4. **Burn rate** - Multiple calculations
+    
+    **Minimal fast configuration:**
+    ```bash
+    cc-statusline init
+    # Select only:
+    # - 📁 Working Directory
+    # - 🌿 Git Branch  
+    # - 🤖 Model Name
+    # - 🧠 Context Remaining
+    ```
+  </Accordion>
+  
+  <Accordion title="Disable ccusage" icon="ban">
+    **Solution:** If you don't need cost tracking
+    
+    Regenerate without usage features:
+    ```bash
+    cc-statusline init
+    # Deselect:
+    # - 💵 Usage & Cost
+    # - 📊 Token Statistics
+    # - ⚡ Burn Rate
+    # - ⌛ Session Reset Time
+    ```
+    
+    This eliminates the `npx ccusage@latest` call which can add 100-500ms.
+  </Accordion>
+</AccordionGroup>
+
+### Missing Features
+
+From README.md:239-244, features not displaying.
+
+<AccordionGroup>
+  <Accordion title="Install jq" icon="download">
+    **Symptom:** Missing context percentage, tokens, or session time
+    
+    **Cause:** jq is not installed
+    
+    From README.md:38-42:
+    > Without jq, your statusline will have LIMITED functionality:
+    > - ❌ No context remaining percentage
+    > - ❌ No token statistics from ccusage  
+    > - ❌ No session timer
+    > - ⚠️ Basic fallback parser is used (less reliable)
+    
+    **Solution:** Install jq for your platform
+    
+    <CodeGroup>
+    ```bash macOS
+    brew install jq
+    ```
+    
+    ```bash Ubuntu/Debian
+    sudo apt-get install jq
+    ```
+    
+    ```bash CentOS/RHEL
+    sudo yum install jq
+    ```
+    
+    ```bash Windows (Chocolatey)
+    choco install jq
+    ```
+    
+    ```bash Windows (Scoop)
+    scoop install jq
+    ```
+    
+    ```bash Windows (Winget)
+    winget install jqlang.jq
+    ```
+    </CodeGroup>
+    
+    **Verify installation:**
+    ```bash
+    jq --version
+    # Should output: jq-1.6 or higher
+    ```
+  </Accordion>
+  
+  <Accordion title="ccusage Setup" icon="dollar-sign">
+    **Symptom:** No cost or usage statistics
+    
+    **Solution:** ccusage works automatically via `npx`
+    
+    From README.md:92:
+    > **ccusage** - For usage stats (works via `npx` - no install needed)
+    
+    **Verify ccusage works:**
+    ```bash
+    npx ccusage@latest
+    ```
+    
+    If this hangs or fails, check:
+    - Network connectivity
+    - npm/npx installation
+    - Firewall settings
+    
+    <Tip>ccusage is called automatically when usage features are enabled. No manual setup required!</Tip>
+  </Accordion>
+  
+  <Accordion title="Git Not Found" icon="code-branch">
+    **Symptom:** No branch name displayed
+    
+    **Solution:** Install git
+    
+    <CodeGroup>
+    ```bash macOS
+    brew install git
+    ```
+    
+    ```bash Ubuntu/Debian  
+    sudo apt-get install git
+    ```
+    
+    ```bash Windows
+    winget install Git.Git
+    ```
+    </CodeGroup>
+    
+    **Verify:**
+    ```bash
+    git --version
+    ```
+    
+    <Info>Git branch feature gracefully falls back to showing nothing if git is not installed</Info>
+  </Accordion>
+  
+  <Accordion title="Context Not Showing" icon="brain">
+    **Symptom:** Context shows "TBD" or missing
+    
+    **Causes:**
+    1. jq not installed (see above)
+    2. Not in an active Claude Code session
+    3. No context usage data available yet
+    
+    **Solution:**
+    ```bash
+    # 1. Install jq
+    jq --version
+    
+    # 2. Start a Claude Code session and send some messages
+    # Context data only appears after you've used some context
+    
+    # 3. Check if context data is in input
+    # Enable debug logging and check .claude/statusline.log
+    ```
+  </Accordion>
+  
+  <Accordion title="Colors Not Working" icon="palette">
+    **Symptom:** No colors or emojis in output
+    
+    **Cause:** `NO_COLOR` environment variable is set
+    
+    **Solution:**
+    ```bash
+    # Check if NO_COLOR is set
+    echo $NO_COLOR
+    
+    # Unset it if you want colors
+    unset NO_COLOR
+    
+    # Or remove from shell profile (.bashrc, .zshrc, etc.)
+    ```
+    
+    <Info>From README.md:197: cc-statusline honors `NO_COLOR` environment variable</Info>
+  </Accordion>
+</AccordionGroup>
+
+### Installation Errors
+
+<AccordionGroup>
+  <Accordion title="Permission Denied During Install" icon="ban">
+    **Symptom:**
+    ```
+    Error: EACCES: permission denied, mkdir '/home/user/.claude'
+    ```
+    
+    **Solution:**
+    ```bash
+    # Don't use sudo! Instead, fix ownership:
+    sudo chown -R $USER:$USER ~/.claude
+    
+    # Then retry:
+    cc-statusline init
+    ```
+  </Accordion>
+  
+  <Accordion title="Node.js Version Too Old" icon="exclamation">
+    **Symptom:**
+    ```
+    Error: The engine "node" is incompatible with this module
+    ```
+    
+    **Cause:** Requires Node.js 16+
+    
+    **Solution:**
+    ```bash
+    # Check current version
+    node --version
+    
+    # Update Node.js (using nvm)
+    nvm install 20
+    nvm use 20
+    
+    # Or download from https://nodejs.org/
+    ```
+  </Accordion>
+  
+  <Accordion title="Settings Update Failed" icon="gear">
+    **Symptom:**
+    ```
+    Warning: Could not update settings.json
+    ```
+    
+    **Cause:** Invalid JSON in existing settings.json
+    
+    **Solution:**
+    ```bash
+    # Validate JSON syntax
+    cat .claude/settings.json | jq .
+    
+    # If invalid, fix syntax errors or recreate:
+    echo '{}' > .claude/settings.json
+    
+    # Then manually add statusLine configuration
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Debug Logging
+
+Enable detailed logging to diagnose issues:
+
+<Steps>
+  <Step title="Enable Logging">
+    During `cc-statusline init`, select "Yes" for debug logging.
+    
+    Or regenerate with logging:
+    ```bash
+    cc-statusline init
+    # Select: 📝 Enable debug logging to .claude/statusline.log?
+    # Choose: Yes
+    ```
+  </Step>
+  
+  <Step title="Trigger Statusline">
+    Use Claude Code normally or run preview:
+    ```bash
+    cc-statusline preview .claude/statusline.sh
+    ```
+  </Step>
+  
+  <Step title="Read Logs">
+    ```bash
+    cat .claude/statusline.log
+    ```
+    
+    Look for:
+    - Input JSON from Claude Code
+    - Whether jq is being used
+    - Extracted values for each feature
+  </Step>
+</Steps>
+
+**Example log output:**
+
+From bash-generator.ts:65-83:
+```
+[2026-03-04 10:30:15] Status line triggered (cc-statusline v1.4.0)
+[2026-03-04 10:30:15] Input:
+{
+  "workspace": {
+    "current_dir": "/home/user/project"
+  },
+  "model": {
+    "display_name": "Sonnet 4"
+  }
+}
+[2026-03-04 10:30:15] Using jq for JSON parsing
+---
+[2026-03-04 10:30:15] Extracted: dir=~/project, model=Sonnet 4, version=, git=main, context=83%, cost=, cost_ph=, tokens=, tpm=, session_pct=
+[2026-03-04 10:30:15] Note: Context, tokens, and session info require jq for full functionality
+```
+
+<Tip>Empty values in "Extracted" line indicate missing data or disabled features</Tip>
+
+## Platform-Specific Issues
+
+### Windows
+
+<AccordionGroup>
+  <Accordion title="Bash Not Found" icon="terminal">
+    **Symptom:**
+    ```
+    'bash' is not recognized as an internal or external command
+    ```
+    
+    **Solution:** Install Git for Windows (includes bash)
+    
+    ```bash
+    winget install Git.Git
+    ```
+    
+    Or install WSL:
+    ```bash
+    wsl --install
+    ```
+  </Accordion>
+  
+  <Accordion title="Path Separators" icon="slash">
+    **Symptom:** Paths show with backslashes instead of forward slashes
+    
+    **Solution:** The statusline automatically converts backslashes
+    
+    From bash-generator.ts:103-106:
+    ```typescript
+    // Convert escaped backslashes to forward slashes for Windows paths
+    if [ -n "$value" ]; then
+      value=$(echo "$value" | sed 's/\\\\/\//g')
+    fi
+    ```
+    
+    This is handled automatically - no action needed.
+  </Accordion>
+</AccordionGroup>
+
+### macOS
+
+<AccordionGroup>
+  <Accordion title="Command Not Found: cc-statusline" icon="question">
+    **Symptom:** `cc-statusline: command not found`
+    
+    **Solution:** Use npx instead of global install
+    
+    ```bash
+    npx @chongdashu/cc-statusline@latest init
+    ```
+    
+    Or install globally:
+    ```bash
+    npm install -g @chongdashu/cc-statusline
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Linux
+
+<AccordionGroup>
+  <Accordion title="jq Not in PATH" icon="road">
+    **Symptom:** jq installed but not found
+    
+    **Solution:**
+    ```bash
+    # Find jq location
+    which jq
+    
+    # Add to PATH in ~/.bashrc or ~/.zshrc
+    export PATH="$PATH:/usr/local/bin"
+    
+    # Reload shell
+    source ~/.bashrc
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Troubleshooting
+
+### Inspect Generated Script
+
+Manually review the generated bash script:
+
+```bash
+less .claude/statusline.sh
+```
+
+Check for:
+- **Shebang line:** `#!/bin/bash`
+- **Version:** `STATUSLINE_VERSION="1.4.0"`
+- **Feature flags:** Verify selected features are included
+- **Syntax errors:** Run `bash -n .claude/statusline.sh`
+
+### Test JSON Parsing
+
+Test the JSON extraction manually:
+
+```bash
+# Create test input
+echo '{
+  "workspace": {"current_dir": "/home/user/test"},
+  "model": {"display_name": "Claude Sonnet"}
+}' | .claude/statusline.sh
+```
+
+Should output statusline with test data.
+
+### Check for Conflicting Statuslines
+
+From installer.ts:72-90, cc-statusline detects conflicts:
+
+```bash
+# Check for other statusline commands
+grep -r "statusLine" ~/.claude/settings.json .claude/settings.json 2>/dev/null
+```
+
+If you see a different command, you may need to replace it.
+
+## Getting Help
+
+If you're still stuck:
+
+<Steps>
+  <Step title="Gather Information">
+    ```bash
+    # System info
+    uname -a
+    node --version
+    jq --version
+    git --version
+    
+    # Installation check
+    ls -la .claude/
+    cat .claude/settings.json
+    
+    # Preview output
+    cc-statusline preview .claude/statusline.sh
+    ```
+  </Step>
+  
+  <Step title="Check Debug Logs">
+    ```bash
+    cat .claude/statusline.log
+    ```
+  </Step>
+  
+  <Step title="Report Issue">
+    Open an issue at:
+    https://github.com/chongdashu/cc-statusline/issues
+    
+    Include:
+    - Operating system and version
+    - Node.js version
+    - Complete error message
+    - Output of preview command
+    - Debug logs (if enabled)
+  </Step>
+</Steps>
+
+## Common Error Messages
+
+<AccordionGroup>
+  <Accordion title="USER_CANCELLED_OVERWRITE" icon="ban">
+    **Meaning:** You declined to overwrite existing statusline.sh
+    
+    **Action:** Run `cc-statusline init` again and confirm overwrite, or manually edit the existing file
+  </Accordion>
+  
+  <Accordion title="SETTINGS_UPDATE_FAILED" icon="gear">
+    **Meaning:** Could not automatically update settings.json
+    
+    **Action:** Manually add statusLine configuration (see README.md:217-224)
+  </Accordion>
+  
+  <Accordion title="oldString not found in content" icon="magnifying-glass">
+    **Meaning:** Internal error during script generation
+    
+    **Action:** Delete `.claude/statusline.sh` and regenerate
+  </Accordion>
+</AccordionGroup>
+
+## Prevention Tips
+
+<Tip>Best practices to avoid issues:</Tip>
+
+1. **Always restart Claude Code** after installation or changes
+2. **Install jq first** before running init for full functionality  
+3. **Use preview command** before installing to catch issues early
+4. **Keep backups** of working configurations
+5. **Enable debug logging** during initial setup
+6. **Start minimal** - add features gradually if you have issues
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Performance Guide" icon="gauge-high" href="/guides/performance">
+    Optimize your statusline for speed
+  </Card>
+  <Card title="Configuration Guide" icon="sliders" href="/guides/configuration">
+    Learn about all available features
+  </Card>
+</CardGroup>

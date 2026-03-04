@@ -1,0 +1,224 @@
+---
+title: cc-statusline init
+description: Create a custom statusline with interactive prompts
+---
+
+## Overview
+
+The `init` command launches an interactive setup wizard that guides you through creating a custom statusline for Claude Code. It collects your preferences, generates an optimized bash script, and automatically installs it to your Claude Code configuration.
+
+## Syntax
+
+```bash
+cc-statusline init [options]
+```
+
+## Options
+
+<ParamField path="-o, --output" type="string" default="./.claude/statusline.sh">
+  Output path for the generated statusline.sh file. By default, saves to the project's `.claude` directory or `~/.claude` for global installations.
+</ParamField>
+
+<ParamField path="--no-install" type="boolean" default="false">
+  Prevents automatic installation to `.claude/statusline.sh` and skips settings.json updates. Use this flag to generate the script without installing it.
+</ParamField>
+
+## Interactive Prompts
+
+The init command guides you through several configuration choices:
+
+1. **Installation Location** - Choose between global (`~/.claude/`) or project-specific (`./.claude/`) installation
+2. **Theme Selection** - Pick your preferred visual style and layout
+3. **Color Scheme** - Select from various color palettes optimized for terminal display
+4. **Feature Selection** - Enable or disable specific statusline features:
+   - 📁 Directory display with `~` abbreviation
+   - 🌿 Git branch integration
+   - 🤖 Model info and Claude Code version
+   - 🧠 Context usage tracking with progress bars
+   - 💰 Cost tracking with burn rates
+   - ⌛ Session timer until reset
+   - 📊 Token analytics and consumption metrics
+
+## Prerequisites Check
+
+Before generating the statusline, the init command automatically checks for `jq` installation:
+
+- **With jq**: Full feature support including context tracking, token stats, and session timer
+- **Without jq**: Basic features work with fallback parser, but advanced features are disabled
+
+If `jq` is not detected, the command displays platform-specific installation instructions and asks if you want to continue without it.
+
+## Examples
+
+### Basic Usage
+
+Run the interactive setup with default options:
+
+```bash
+cc-statusline init
+```
+
+**Output:**
+```
+⠋ Initializing statusline generator...
+✔ Statusline generator initialized!
+
+? Where would you like to install the statusline? Project (./.claude/)
+? Choose your statusline theme: Modern 3-Line
+? Choose your color scheme: Vibrant
+? Select features to include: Directory, Git Branch, Model, Claude Code Version, Context, Cost, Session, Tokens
+
+⠋ Generating statusline script...
+✔ Statusline script generated!
+
+✨ Your statusline will look like:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📁 ~/projects/my-app  🌿 main  🤖 Sonnet 4  📟 v1.0.85  🎨 default
+🧠 Context Remaining: 83% [========--]  ⌛ 3h 7m until reset at 01:00 (37%) [===-------]
+💰 $49.00 ($16.55/h)  📊 14638846 tok (279900 tpm)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📦 Installing statusline...
+✅ Statusline installed!
+
+🎉 Success! Your custom statusline is ready!
+
+📁 Project installation complete: /home/user/my-app/.claude/statusline.sh
+
+Next steps:
+   1. Restart Claude Code to see your new statusline
+```
+
+### Custom Output Location
+
+Generate the statusline to a specific path:
+
+```bash
+cc-statusline init --output ~/my-custom-statusline.sh
+```
+
+This creates the script at the specified location and updates settings.json accordingly.
+
+### Generate Without Installing
+
+Create the statusline script without automatic installation:
+
+```bash
+cc-statusline init --no-install
+```
+
+**Output:**
+```
+✔ Statusline script generated!
+
+✨ Your statusline will look like:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📁 ~/my-app  🌿 main  🤖 Claude Sonnet  💵 $2.48 ($12.50/h)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Statusline generated successfully!
+
+📁 Save this script to: /home/user/.claude/statusline.sh
+
+Then restart Claude Code to see your new statusline.
+```
+
+Use this option when you want to manually configure the statusline or review the script before installation.
+
+### Global Installation
+
+Install the statusline globally for use across all projects:
+
+```bash
+cc-statusline init
+# When prompted, select "Global (~/.claude/)"
+```
+
+The statusline will be saved to `~/.claude/statusline.sh` and configured in `~/.claude/settings.json`.
+
+## Installation Process
+
+When installation is enabled (default), the init command:
+
+1. **Generates** an optimized bash script based on your configuration
+2. **Creates** the `.claude` directory if it doesn't exist
+3. **Writes** `statusline.sh` with execute permissions (chmod +x)
+4. **Updates** `settings.json` with the statusline configuration:
+   ```json
+   {
+     "statusLine": {
+       "type": "command",
+       "command": ".claude/statusline.sh",
+       "padding": 0
+     }
+   }
+   ```
+5. **Validates** the installation and provides next steps
+
+## Safety Features
+
+The init command includes several safety mechanisms:
+
+- **Conflict Detection**: Warns if an existing statusline.sh is found
+- **Overwrite Protection**: Asks for confirmation before replacing existing files
+- **Settings Preservation**: Merges with existing settings.json instead of overwriting
+- **Graceful Fallback**: Provides manual configuration instructions if auto-setup fails
+
+## Error Handling
+
+### Configuration Validation Failed
+
+```
+❌ Configuration validation failed:
+   • Theme must be one of: modern, compact, minimal
+   • At least one feature must be selected
+```
+
+The command validates your configuration before generating the script. Fix the reported issues and try again.
+
+### Installation Cancelled
+
+```
+⚠️  Installation cancelled. Existing statusline.sh was not overwritten.
+```
+
+You chose not to overwrite an existing statusline. Use `--output` to save to a different location or `--no-install` to skip installation.
+
+### Settings Update Failed
+
+```
+⚠️  Settings.json could not be updated automatically.
+
+Manual Configuration Required:
+Add this to your .claude/settings.json file:
+
+{
+  "statusLine": {
+    "type": "command",
+    "command": ".claude/statusline.sh",
+    "padding": 0
+  }
+}
+
+📁 Statusline script saved to: /home/user/.claude/statusline.sh
+```
+
+The script was generated successfully but couldn't automatically update settings.json. Follow the provided instructions to complete the manual configuration.
+
+## Next Steps
+
+After running `init`:
+
+1. **Restart Claude Code** to activate the new statusline
+2. **Test with preview** (optional): `cc-statusline preview .claude/statusline.sh`
+3. **Set up ccusage** (if using cost tracking): The command runs automatically via `npx ccusage@latest`
+
+## Related Commands
+
+- [`preview`](/cli/preview) - Test your generated statusline before installing
+- [`test`](/cli/test) - Validate statusline with real Claude Code input
+
+## Source Reference
+
+Command definition: `src/index.ts:15-20`  
+Implementation: `src/cli/commands.ts:84-209`

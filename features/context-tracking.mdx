@@ -1,0 +1,287 @@
+---
+title: Context Usage Tracking
+description: Monitor your context window usage in real-time with visual progress indicators
+icon: gauge
+---
+
+## Overview
+
+Context tracking displays how much of your context window is remaining, helping you monitor when you're approaching the limit.
+
+<Note>
+  **Requires jq** for JSON parsing. This feature will not work without jq installed.
+</Note>
+
+### What You See
+
+```bash
+🧠 Context Remaining: 83% [========--]
+```
+
+The display includes:
+- 🧠 Brain emoji indicating context usage
+- Percentage of context window remaining
+- Visual progress bar (10 characters)
+- Color-coded warning levels
+
+## How It Works
+
+### Data Source
+
+Context information comes directly from Claude Code's native JSON input—no external tools needed:
+
+```json
+{
+  "context_window": {
+    "context_window_size": 200000,
+    "current_usage": {
+      "input_tokens": 15000,
+      "cache_creation_input_tokens": 5000,
+      "cache_read_input_tokens": 10000
+    }
+  }
+}
+```
+
+### Calculation Logic
+
+From `bash-generator.ts:162-199`:
+
+```bash
+# Get context window size and current usage from native Claude Code input
+CONTEXT_SIZE=$(echo "$input" | jq -r '.context_window.context_window_size // 200000' 2>/dev/null)
+USAGE=$(echo "$input" | jq '.context_window.current_usage' 2>/dev/null)
+
+if [ "$USAGE" != "null" ] && [ -n "$USAGE" ]; then
+  # Calculate current context from current_usage fields
+  # Formula: input_tokens + cache_creation_input_tokens + cache_read_input_tokens
+  CURRENT_TOKENS=$(echo "$USAGE" | jq '(.input_tokens // 0) + (.cache_creation_input_tokens // 0) + (.cache_read_input_tokens // 0)' 2>/dev/null)
+
+  if [ -n "$CURRENT_TOKENS" ] && [ "$CURRENT_TOKENS" -gt 0 ] 2>/dev/null; then
+    context_used_pct=$(( CURRENT_TOKENS * 100 / CONTEXT_SIZE ))
+    context_remaining_pct=$(( 100 - context_used_pct ))
+    # Clamp to valid range
+    (( context_remaining_pct < 0 )) && context_remaining_pct=0
+    (( context_remaining_pct > 100 )) && context_remaining_pct=100
+  fi
+fi
+```
+
+<Accordion title="Token calculation breakdown">
+  The context usage is calculated from three components:
+  
+  1. **input_tokens**: Regular input tokens from your conversation
+  2. **cache_creation_input_tokens**: Tokens used to create prompt cache entries
+  3. **cache_read_input_tokens**: Tokens read from the prompt cache
+  
+  **Formula**: `Total = input + cache_creation + cache_read`
+  
+  This total is then compared against the context window size (typically 200,000 tokens for Claude Sonnet).
+</Accordion>
+
+## Color-Coded Warnings
+
+The context display uses dynamic colors based on remaining percentage:
+
+| Remaining % | Color | ANSI Code | Meaning |
+|-------------|-------|-----------|----------|
+| 0-20% | Coral Red | 38;5;203 | ⚠️ Critical - approaching limit |
+| 21-40% | Peach | 38;5;215 | ⚡ Warning - significant usage |
+| 41-100% | Mint Green | 38;5;158 | ✅ Healthy - plenty of space |
+
+From `bash-generator.ts:187-193`:
+
+```bash
+# Set color based on remaining percentage
+if [ "$context_remaining_pct" -le 20 ]; then
+  context_color() { if [ "$use_color" -eq 1 ]; then printf '\033[38;5;203m'; fi; }  # coral red
+elif [ "$context_remaining_pct" -le 40 ]; then
+  context_color() { if [ "$use_color" -eq 1 ]; then printf '\033[38;5;215m'; fi; }  # peach
+else
+  context_color() { if [ "$use_color" -eq 1 ]; then printf '\033[38;5;158m'; fi; }  # mint green
+fi
+```
+
+## Progress Bar Visualization
+
+The progress bar provides a quick visual indicator of remaining context:
+
+```bash
+# 90% remaining - mostly empty
+🧠 Context Remaining: 90% [=========- ]
+
+# 50% remaining - half full
+🧠 Context Remaining: 50% [=====-----]
+
+# 15% remaining - nearly full (red warning)
+🧠 Context Remaining: 15% [==---------]
+```
+
+### Progress Bar Function
+
+From `features/usage.ts:145-151`:
+
+```bash
+progress_bar() {
+  pct="\${1:-0}"; width="\${2:-10}"
+  [[ "$pct" =~ ^[0-9]+$ ]] || pct=0; ((pct<0))&&pct=0; ((pct>100))&&pct=100
+  filled=$(( pct * width / 100 )); empty=$(( width - filled ))
+  printf '%*s' "$filled" '' | tr ' ' '='
+  printf '%*s' "$empty" '' | tr ' ' '-'
+}
+```
+
+<Accordion title="How the progress bar works">
+  1. **Input validation**: Ensures percentage is 0-100
+  2. **Calculate segments**: Determines how many filled (`=`) and empty (`-`) characters
+  3. **Render bar**: Uses `printf` and `tr` to create the visual representation
+  4. **Fixed width**: Always 10 characters wide for consistency
+</Accordion>
+
+## Display Implementation
+
+From `bash-generator.ts:237-240`:
+
+```bash
+# Line 2: Context and session time
+line2=""
+if [ -n "$context_pct" ]; then
+  context_bar=$(progress_bar "$context_remaining_pct" 10)
+  line2="🧠 $(context_color)Context Remaining: \${context_pct} [\${context_bar}]$(rst)"
+fi
+```
+
+Context appears on the second line of the statusline, alongside session timer information if enabled.
+
+## Configuration
+
+From `cli/prompts.ts:27`:
+
+```typescript
+{ name: '🧠 Context Remaining', value: 'context', checked: true }
+```
+
+Context tracking is **enabled by default** during installation.
+
+## Example Scenarios
+
+<Tabs>
+  <Tab title="Fresh Conversation">
+    ```bash
+    # Just started, plenty of context
+    🧠 Context Remaining: 98% [==========]
+    ```
+    
+    Color: Mint green (healthy)
+  </Tab>
+  
+  <Tab title="Mid Conversation">
+    ```bash
+    # About halfway through context window
+    🧠 Context Remaining: 52% [=====-----]
+    ```
+    
+    Color: Mint green (still healthy)
+  </Tab>
+  
+  <Tab title="Warning Level">
+    ```bash
+    # Getting close to limit
+    🧠 Context Remaining: 28% [===-------]
+    ```
+    
+    Color: Peach (warning)
+  </Tab>
+  
+  <Tab title="Critical Level">
+    ```bash
+    # Nearly at limit - consider starting new conversation
+    🧠 Context Remaining: 8% [=--------]
+    ```
+    
+    Color: Coral red (critical)
+  </Tab>
+</Tabs>
+
+## Fallback Behavior
+
+Without jq, context tracking is unavailable:
+
+```bash
+# Without jq
+🧠 Context Remaining: TBD
+```
+
+<Warning>
+  There is no bash fallback for context tracking because:
+  - Requires parsing nested JSON structures
+  - Needs mathematical calculations on extracted values
+  - jq is essential for reliable data extraction
+  
+  **Install jq to enable this feature.**
+</Warning>
+
+## Requirements
+
+| Requirement | Purpose | Install Command |
+|-------------|---------|----------------|
+| **jq** | JSON parsing | `brew install jq` (macOS)<br/>`apt-get install jq` (Ubuntu) |
+| **Claude Code** | Data source | Already installed |
+
+## Performance
+
+- **Execution time**: ~5-10ms with jq
+- **Data source**: Native Claude Code JSON (no external API calls)
+- **Overhead**: Minimal - single jq invocation
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Shows 'TBD' instead of percentage">
+    **Cause**: jq is not installed or not in PATH
+    
+    **Solution**:
+    ```bash
+    # Verify jq installation
+    jq --version
+    
+    # Install if missing (macOS)
+    brew install jq
+    
+    # Install if missing (Ubuntu/Debian)
+    sudo apt-get install jq
+    ```
+  </Accordion>
+  
+  <Accordion title="Shows 0% or incorrect percentage">
+    **Cause**: Claude Code JSON format may have changed
+    
+    **Debug steps**:
+    1. Enable logging: Re-run `cc-statusline init` and enable debug logging
+    2. Check `.claude/statusline.log` for the raw JSON input
+    3. Verify the `context_window` object exists in the JSON
+    4. Report issue if JSON structure has changed
+  </Accordion>
+  
+  <Accordion title="Context never changes">
+    **Cause**: May be in a conversation that hasn't used significant context yet
+    
+    **Normal behavior**: Context usage only increases as you:
+    - Have longer conversations
+    - Include more code context
+    - Use tools extensively
+    
+    Try a longer conversation to see the percentage decrease.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Cost Monitoring" icon="dollar-sign" href="/features/cost-monitoring">
+    Track costs and burn rates alongside context
+  </Card>
+  <Card title="Session Timer" icon="clock" href="/features/session-timer">
+    Monitor time until usage reset
+  </Card>
+</CardGroup>

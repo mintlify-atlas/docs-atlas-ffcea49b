@@ -1,0 +1,310 @@
+---
+title: Configuration Guide
+description: Learn how to configure cc-statusline features and customize your Claude Code experience
+icon: sliders
+---
+
+## Overview
+
+cc-statusline offers flexible configuration through an interactive setup process. All features are pre-selected by default and can be customized to match your workflow.
+
+## Interactive Configuration
+
+The `init` command guides you through configuration with intelligent defaults:
+
+```bash
+npx @chongdashu/cc-statusline@latest init
+```
+
+<Steps>
+  <Step title="Select Features">
+    Choose which information to display in your statusline using arrow keys and spacebar.
+    
+    All features are **enabled by default** for the best experience.
+  </Step>
+  
+  <Step title="Color Scheme">
+    Enable or disable the modern color scheme and emojis.
+    
+    Default: **Enabled** for better visibility
+  </Step>
+  
+  <Step title="Debug Logging">
+    Optionally enable debug logging to `.claude/statusline.log`.
+    
+    Default: **Disabled** to reduce file clutter
+  </Step>
+  
+  <Step title="Installation Location">
+    Choose between global (`~/.claude`) or project-level (`./.claude`) installation.
+    
+    Default: **Project** for safety and isolation
+  </Step>
+</Steps>
+
+## Available Features
+
+### Core Features
+
+These features are displayed on the first line of your statusline:
+
+<AccordionGroup>
+  <Accordion title="📁 Working Directory" icon="folder">
+    Displays your current working directory with `~` abbreviation for home directory.
+    
+    **Example:** `📁 ~/Projects/my-app`
+    
+    **Requirements:** None
+  </Accordion>
+  
+  <Accordion title="🌿 Git Branch" icon="code-branch">
+    Shows the active git branch name in your repository.
+    
+    **Example:** `🌿 feature/new-statusline`
+    
+    **Requirements:** git installed (optional)
+    
+    <Tip>If git is not installed, this feature gracefully falls back to showing nothing</Tip>
+  </Accordion>
+  
+  <Accordion title="🤖 Model Name & Version" icon="robot">
+    Displays which Claude model you're currently using.
+    
+    **Example:** `🤖 Sonnet 4`
+    
+    **Requirements:** None (extracted from Claude Code JSON)
+  </Accordion>
+</AccordionGroup>
+
+### Context & Session Features
+
+Displayed on the second line for real-time awareness:
+
+<AccordionGroup>
+  <Accordion title="🧠 Context Remaining" icon="brain">
+    Shows remaining context window as a percentage with visual progress bar.
+    
+    **Example:** `🧠 Context Remaining: 83% [========--]`
+    
+    **Color coding:**
+    - Green (&gt;40%): Plenty of space
+    - Peach (20-40%): Getting full
+    - Red (&lt;20%): Nearly full
+    
+    **Requirements:** jq (falls back to "TBD" without it)
+    
+    <Info>Context is calculated from Claude Code's native `context_window.current_usage` field</Info>
+  </Accordion>
+  
+  <Accordion title="⌛ Session Reset Time" icon="clock">
+    Displays time until usage limit resets with countdown and progress bar.
+    
+    **Example:** `⌛ 3h 7m until reset at 01:00 (37%) [===-------]`
+    
+    **Requirements:** jq + ccusage integration
+    
+    <Warning>This feature requires both jq and ccusage to work properly</Warning>
+  </Accordion>
+</AccordionGroup>
+
+### Usage Analytics
+
+Displayed on the third line for cost tracking:
+
+<AccordionGroup>
+  <Accordion title="💵 Usage & Cost" icon="dollar-sign">
+    Real-time cost monitoring with optional burn rate.
+    
+    **Example:** `💰 $49.00 ($16.55/h)`
+    
+    **Requirements:** ccusage (via `npx ccusage@latest`)
+    
+    <Tip>Burn rate is calculated from your recent usage pattern</Tip>
+  </Accordion>
+  
+  <Accordion title="📊 Token Statistics" icon="chart-bar">
+    Total token consumption with tokens-per-minute burn rate.
+    
+    **Example:** `📊 14638846 tok (279900 tpm)`
+    
+    **Requirements:** jq + ccusage
+  </Accordion>
+  
+  <Accordion title="⚡ Burn Rate" icon="fire">
+    Enhanced cost and token burn rate display.
+    
+    Shows both $/hour and tokens/minute metrics.
+    
+    **Requirements:** jq + ccusage
+  </Accordion>
+</AccordionGroup>
+
+## Configuration Options
+
+### Feature Selection
+
+From `src/cli/prompts.ts:18-40`, the available features are:
+
+```typescript
+{
+  type: 'checkbox',
+  name: 'features',
+  choices: [
+    { name: '📁 Working Directory', value: 'directory', checked: true },
+    { name: '🌿 Git Branch', value: 'git', checked: true },
+    { name: '🤖 Model Name & Version', value: 'model', checked: true },
+    { name: '🧠 Context Remaining', value: 'context', checked: true },
+    { name: '💵 Usage & Cost', value: 'usage', checked: true },
+    { name: '📊 Token Statistics', value: 'tokens', checked: true },
+    { name: '⚡ Burn Rate', value: 'burnrate', checked: true },
+    { name: '⌛ Session Reset Time', value: 'session', checked: false }
+  ]
+}
+```
+
+<Note>Session reset time is disabled by default because it requires ccusage integration</Note>
+
+### Color Schemes
+
+When colors are enabled, cc-statusline uses a 256-color palette optimized for Claude Code terminals:
+
+- **Directory:** Cyan (`\033[38;5;117m`)
+- **Git Branch:** Green (`\033[38;5;150m`)
+- **Model:** Purple (`\033[38;5;141m`)
+- **Context (&gt;40%):** Mint green (`\033[38;5;158m`)
+- **Context (20-40%):** Peach (`\033[38;5;215m`)
+- **Context (&lt;20%):** Coral red (`\033[38;5;203m`)
+- **Cost:** Yellow (`\033[38;5;228m`)
+- **Burn Rate:** Highlighted orange (`\033[38;5;215m`)
+
+### Debug Logging
+
+Enable logging to troubleshoot issues:
+
+```bash
+# During init, select "Yes" for debug logging
+```
+
+Logs are written to `.claude/statusline.log` and include:
+- Timestamp of each statusline trigger
+- Input JSON from Claude Code
+- Extracted data values
+- Whether jq is available
+
+**Example log output:**
+```
+[2026-03-04 10:30:15] Status line triggered (cc-statusline v1.4.0)
+[2026-03-04 10:30:15] Input:
+{
+  "workspace": { "current_dir": "/home/user/project" },
+  "model": { "display_name": "Sonnet 4" }
+}
+[2026-03-04 10:30:15] Using jq for JSON parsing
+[2026-03-04 10:30:15] Extracted: dir=~/project, model=Sonnet 4, context=83%, cost=49.00
+```
+
+## Advanced Options
+
+### Custom Output Path
+
+Generate the statusline to a custom location:
+
+```bash
+cc-statusline init --output ./my-custom-statusline.sh
+```
+
+### Skip Auto-Installation
+
+Generate the script without automatic installation:
+
+```bash
+cc-statusline init --no-install
+```
+
+You'll need to manually configure `.claude/settings.json`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": ".claude/statusline.sh",
+    "padding": 0
+  }
+}
+```
+
+### Environment Variables
+
+cc-statusline respects standard environment variables:
+
+<CodeGroup>
+```bash NO_COLOR
+# Disable all color output
+export NO_COLOR=1
+```
+
+```bash Custom Home
+# Change home directory abbreviation
+export HOME=/custom/home
+```
+</CodeGroup>
+
+## Configuration File Structure
+
+After installation, your project has:
+
+```
+.claude/
+├── statusline.sh      # Generated bash script
+├── statusline.log     # Debug logs (if enabled)
+└── settings.json      # Claude Code configuration
+```
+
+The `statusline.sh` script header contains your configuration:
+
+```bash
+#!/bin/bash
+# Generated by cc-statusline v1.4.0
+# Custom Claude Code statusline - Created: 2026-03-04T10:30:15.000Z
+# Theme: detailed | Colors: true | Features: directory, git, model, context, usage, tokens, burnrate
+STATUSLINE_VERSION="1.4.0"
+```
+
+## Reconfiguration
+
+To update your configuration:
+
+<Steps>
+  <Step title="Run init again">
+    ```bash
+    cc-statusline init
+    ```
+  </Step>
+  
+  <Step title="Choose different options">
+    Select your new feature set and preferences
+  </Step>
+  
+  <Step title="Confirm overwrite">
+    When prompted, confirm you want to overwrite the existing statusline:
+    
+    `⚠️ Project statusline.sh already exists. Overwrite?`
+  </Step>
+  
+  <Step title="Restart Claude Code">
+    Changes take effect after restarting Claude Code
+  </Step>
+</Steps>
+
+<Warning>Overwriting will replace your existing statusline script. Make a backup if you've made custom modifications.</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Preview Your Configuration" icon="eye" href="/guides/preview">
+    Test your statusline before restarting Claude Code
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Fix common configuration issues
+  </Card>
+</CardGroup>

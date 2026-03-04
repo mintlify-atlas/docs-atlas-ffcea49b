@@ -1,0 +1,264 @@
+---
+title: cc-statusline test
+description: Test statusline with real Claude Code JSON input
+---
+
+## Overview
+
+The `test` command validates your statusline script using actual Claude Code JSON input data. This provides more accurate testing than the `preview` command by using real-world data instead of mock values.
+
+<Warning>
+  This command is currently in development. The functionality described below represents the planned implementation.
+</Warning>
+
+## Syntax
+
+```bash
+cc-statusline test [options]
+```
+
+## Options
+
+<ParamField path="-c, --config" type="string">
+  Path to the configuration file to test. If not specified, uses the default `.claude/statusline.sh` location.
+</ParamField>
+
+## Current Status
+
+The test command is currently a placeholder that displays:
+
+```bash
+cc-statusline test
+```
+
+**Output:**
+```
+Test command coming soon!
+```
+
+## Planned Features
+
+When implemented, the test command will provide:
+
+### Real Data Testing
+
+Unlike `preview` which uses mock data, `test` will work with actual Claude Code JSON input:
+
+- Real working directory paths
+- Current git branch information
+- Actual model name and version
+- Live context usage statistics
+- Real-time cost and token data
+
+### Validation Capabilities
+
+1. **Input Validation** - Verify Claude Code provides expected JSON structure
+2. **Output Verification** - Ensure statusline renders correctly with real data
+3. **Performance Testing** - Measure execution time under actual conditions
+4. **Feature Coverage** - Confirm all enabled features work with real data
+
+### Configuration File Support
+
+Test specific statusline configurations:
+
+```bash
+# Test default project statusline
+cc-statusline test
+
+# Test specific configuration
+cc-statusline test --config .claude/statusline-experimental.sh
+
+# Test global configuration
+cc-statusline test --config ~/.claude/statusline.sh
+```
+
+## Differences from Preview
+
+| Aspect | Preview | Test |
+|--------|---------|------|
+| **Data Source** | Mock JSON data | Real Claude Code input |
+| **Execution Context** | Simulated environment | Actual Claude Code environment |
+| **Availability** | Available anytime | Requires active Claude Code session |
+| **Use Case** | Quick validation before restart | Accurate real-world testing |
+| **Dependencies** | None required | Needs Claude Code running |
+
+## Expected Usage
+
+Once implemented, the test command will be used for:
+
+### Validating New Configurations
+
+```bash
+# Generate new statusline
+cc-statusline init --output .claude/statusline-new.sh --no-install
+
+# Test with real Claude Code data
+cc-statusline test --config .claude/statusline-new.sh
+
+# If test passes, install it
+mv .claude/statusline-new.sh .claude/statusline.sh
+```
+
+### Debugging Production Issues
+
+```bash
+# Statusline not working correctly in Claude Code?
+cc-statusline test
+
+# Check what data Claude Code is actually providing
+# Verify script handles real data correctly
+```
+
+### Performance Benchmarking
+
+```bash
+# Test current version
+cc-statusline test --config .claude/statusline.sh
+
+# Test optimized version  
+cc-statusline test --config .claude/statusline-optimized.sh
+
+# Compare real-world performance metrics
+```
+
+## Input Format
+
+The test command will accept Claude Code JSON input in the format:
+
+```json
+{
+  "workingDirectory": "/home/user/projects/my-app",
+  "gitBranch": "feature/new-feature",
+  "modelName": "claude-sonnet-4-20250514",
+  "claudeCodeVersion": "1.0.85",
+  "outputStyle": "default",
+  "contextUsed": 85000,
+  "contextTotal": 100000,
+  "tokensUsed": 14638846,
+  "sessionStartTime": 1709553600,
+  "currentTime": 1709564400
+}
+```
+
+This data can be captured from Claude Code's actual statusline execution or piped directly from stdin.
+
+## Expected Output
+
+The test command will provide comprehensive test results:
+
+```
+🧪 Testing statusline with real Claude Code input...
+
+📥 Input Data:
+  Working Directory: /home/user/projects/my-app
+  Git Branch: feature/new-feature
+  Model: claude-sonnet-4-20250514
+  Claude Code: v1.0.85
+  Context: 85000/100000 (85%)
+
+✅ Statusline Output:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📁 ~/projects/my-app  🌿 feature/new-feature  🤖 Sonnet 4  📟 v1.0.85
+🧠 Context Remaining: 85% [=========-]  ⌛ 2h 45m until reset
+💰 $42.50 ($15.45/h)  📊 14638846 tok (285000 tpm)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 Test Results:
+  ✅ All features rendered successfully
+  ✅ Performance: excellent (73ms)
+  ✅ Directory feature working
+  ✅ Git feature working
+  ✅ Model info working
+  ✅ Context tracking working
+  ✅ Cost tracking working
+  ✅ Session timer working
+  ✅ Token analytics working
+
+🎉 All tests passed!
+```
+
+## Integration with Claude Code
+
+The test command will integrate with Claude Code's environment:
+
+```bash
+# Capture Claude Code JSON input and test
+echo $CLAUDE_CODE_INPUT | cc-statusline test
+
+# Test within Claude Code session
+cc-statusline test --config .claude/statusline.sh
+```
+
+## Error Detection
+
+The test command will detect and report common issues:
+
+- **Missing Dependencies**: Reports if `jq`, `git`, or `ccusage` are unavailable
+- **Invalid Input**: Validates Claude Code JSON structure
+- **Feature Failures**: Identifies which features fail with real data
+- **Performance Issues**: Warns if execution exceeds performance targets
+
+## Workaround Until Implementation
+
+While the test command is in development, use these alternatives:
+
+### Use Preview Command
+
+```bash
+cc-statusline preview .claude/statusline.sh
+```
+
+Provides similar validation with mock data.
+
+### Manual Testing
+
+```bash
+# Create test JSON file with real data from Claude Code
+cat > test-input.json << 'EOF'
+{
+  "workingDirectory": "$(pwd)",
+  "gitBranch": "$(git branch --show-current)",
+  "modelName": "claude-sonnet-4-20250514",
+  "claudeCodeVersion": "1.0.85"
+}
+EOF
+
+# Test statusline manually
+cat test-input.json | .claude/statusline.sh
+```
+
+### Install and Restart
+
+The most accurate test is to install and restart Claude Code:
+
+```bash
+cc-statusline init
+# Restart Claude Code
+# Observe actual statusline behavior
+```
+
+## Development Status
+
+Track implementation progress:
+
+- Repository: [cc-statusline](https://github.com/chongdashu/cc-statusline)
+- Source: `src/index.ts:32-37` (placeholder)
+- Status: Planned for future release
+
+## Contributing
+
+Interested in implementing the test command? Contributions are welcome!
+
+1. Check the [Contributing Guide](https://github.com/chongdashu/cc-statusline/blob/main/CONTRIBUTING.md)
+2. Open an issue to discuss the implementation approach
+3. Submit a pull request with your implementation
+
+## Related Commands
+
+- [`init`](/cli/init) - Generate a new statusline configuration
+- [`preview`](/cli/preview) - Test statusline with mock data (available now)
+
+## Source Reference
+
+Command definition: `src/index.ts:32-37`  
+Implementation: Currently placeholder - outputs "Test command coming soon!"

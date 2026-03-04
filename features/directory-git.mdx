@@ -1,0 +1,251 @@
+---
+title: Directory & Git Integration
+description: Display current directory and git branch information in your statusline
+icon: folder-tree
+---
+
+## Directory Display
+
+The directory feature shows your current working directory with intelligent home path abbreviation.
+
+### How It Works
+
+cc-statusline extracts the current directory from Claude Code's JSON input and automatically abbreviates your home directory to `~`:
+
+```bash
+# Full path
+/Users/yourname/Projects/my-app
+
+# Displayed as
+📁 ~/Projects/my-app
+```
+
+### Implementation Details
+
+<Tabs>
+  <Tab title="With jq (Preferred)">
+    When jq is available, directory extraction is fast and reliable:
+    
+    ```bash
+    current_dir=$(echo "$input" | jq -r '.workspace.current_dir // .cwd // "unknown"' 2>/dev/null | sed "s|^$HOME|~|g")
+    ```
+    
+    This looks for:
+    1. `workspace.current_dir` (primary location)
+    2. `cwd` (fallback)
+    3. `"unknown"` (if both fail)
+  </Tab>
+  
+  <Tab title="Bash Fallback">
+    Without jq, a pure bash parser handles the extraction:
+    
+    ```bash
+    # Extract from workspace object
+    current_dir=$(echo "$input" | grep -o '"workspace"[[:space:]]*:[[:space:]]*{[^}]*"current_dir"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"current_dir"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' | sed 's/\\\\\\\\/\//g')
+    
+    # Fallback to cwd
+    if [ -z "$current_dir" ] || [ "$current_dir" = "null" ]; then
+      current_dir=$(echo "$input" | grep -o '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' | sed 's/\\\\\\\\/\//g')
+    fi
+    ```
+    
+    <Warning>
+      The bash fallback uses complex regex patterns and may be less reliable on edge cases.
+    </Warning>
+  </Tab>
+</Tabs>
+
+### Display Code
+
+From `bash-generator.ts:220`:
+
+```typescript
+printf '📁 %s%s%s' "$(dir_color)" "$current_dir" "$(rst)"
+```
+
+The directory is displayed with:
+- 📁 folder emoji
+- Sky blue color (ANSI 38;5;117)
+- Color reset after text
+
+## Git Integration
+
+The git feature displays your current branch name with automatic detection of git repositories.
+
+### Features
+
+<CardGroup cols={2}>
+  <Card title="Branch Detection" icon="code-branch">
+    Automatically detects and displays current git branch
+  </Card>
+  <Card title="Fallback to SHA" icon="hashtag">
+    Shows short commit SHA in detached HEAD state
+  </Card>
+  <Card title="Safe Execution" icon="shield-check">
+    Gracefully handles non-git directories
+  </Card>
+  <Card title="Performance" icon="gauge-high">
+    Minimal overhead with fast git commands
+  </Card>
+</CardGroup>
+
+### Configuration
+
+From `cli/prompts.ts:26`:
+
+```typescript
+{ name: '🌿 Git Branch', value: 'git', checked: true }
+```
+
+The git feature is **enabled by default** during installation.
+
+### Implementation
+
+From `features/git.ts:21-25`:
+
+```typescript
+export function generateGitBashCode(config: GitFeature, colors: boolean): string {
+  return `${colorCode}
+# ---- git ----
+git_branch=""
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  git_branch=$(git branch --show-current 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)
+fi`
+}
+```
+
+<Accordion title="How the git detection works">
+  1. **Check if in git repo**: `git rev-parse --git-dir >/dev/null 2>&1`
+     - Silently checks for `.git` directory
+     - Returns exit code 0 if in a git repository
+  
+  2. **Get branch name**: `git branch --show-current`
+     - Gets the current branch name (e.g., `main`, `feature/new-feature`)
+     - Fails in detached HEAD state
+  
+  3. **Fallback to commit SHA**: `git rev-parse --short HEAD`
+     - If branch detection fails, show short commit hash
+     - Useful in detached HEAD state or CI/CD environments
+</Accordion>
+
+### Display Code
+
+From `features/git.ts:28-39`:
+
+```typescript
+export function generateGitDisplayCode(config: GitFeature, colors: boolean, emojis: boolean): string {
+  const branchEmoji = emojis ? '🌿' : 'git:'
+
+  let displayCode = `
+# git display
+if [ -n "$git_branch" ]; then
+  printf '  ${branchEmoji} %s%s%s' "$(git_color)" "$git_branch" "$(rst)"
+fi`
+  
+  return displayCode
+}
+```
+
+Branch information is displayed with:
+- 🌿 branch emoji (or `git:` prefix if emojis disabled)
+- Soft green color (ANSI 38;5;150)
+- Only shown if branch was detected
+
+### Example Outputs
+
+```bash
+# On a feature branch
+📁 ~/my-project  🌿 feature/add-statusline
+
+# On main branch
+📁 ~/my-project  🌿 main
+
+# Detached HEAD state (showing commit SHA)
+📁 ~/my-project  🌿 a3f9c2b
+
+# Not in a git repository
+📁 ~/my-project
+```
+
+## Color Customization
+
+From `features/git.ts:11-18`:
+
+```typescript
+const colorCode = colors ? `
+# ---- git colors ----
+git_color() { if [ "$use_color" -eq 1 ]; then printf '\\033[38;5;150m'; fi; }  # soft green
+rst() { if [ "$use_color" -eq 1 ]; then printf '\\033[0m'; fi; }
+` : `
+git_color() { :; }
+rst() { :; }
+`
+```
+
+<Note>
+  Colors respect the `NO_COLOR` environment variable. Set `NO_COLOR=1` to disable all colors.
+</Note>
+
+## Requirements
+
+| Feature | Requirement | Fallback Behavior |
+|---------|-------------|-------------------|
+| Directory | None (always works) | Shows "unknown" if extraction fails |
+| Git Branch | git installed | Branch not displayed if git unavailable |
+| Colors | Terminal with ANSI support | Plain text if colors disabled |
+
+## Performance Notes
+
+Both features are extremely lightweight:
+
+- **Directory**: Simple string extraction and replacement (~1ms)
+- **Git**: Single git command with short-circuit logic (~5-15ms)
+- **Total overhead**: Less than 20ms combined
+
+<Note>
+  Git commands are only executed if the repository check succeeds, minimizing overhead in non-git directories.
+</Note>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Directory shows 'unknown'">
+    This can happen if:
+    - Claude Code JSON format has changed
+    - jq is not installed (install jq for more reliable parsing)
+    - There's an issue with the workspace path
+    
+    **Solution**: Install jq and restart Claude Code.
+  </Accordion>
+  
+  <Accordion title="Git branch not showing">
+    Check if:
+    - You're in a git repository: `git status`
+    - Git is installed: `git --version`
+    - The script has execute permissions: `chmod +x .claude/statusline.sh`
+    
+    **Solution**: Initialize a git repo with `git init` or ensure git is in your PATH.
+  </Accordion>
+  
+  <Accordion title="Windows path issues">
+    Windows paths with backslashes are automatically converted to forward slashes:
+    
+    ```bash
+    # Windows path: C:\Users\name\project
+    # Displayed as: C:/Users/name/project
+    ```
+    
+    This is handled by the sed replacement in the bash fallback parser.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Context Tracking" icon="brain" href="/features/context-tracking">
+    Monitor your context window usage
+  </Card>
+  <Card title="Customization" icon="palette" href="/features/customization">
+    Customize colors and themes
+  </Card>
+</CardGroup>

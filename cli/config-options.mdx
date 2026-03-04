@@ -1,0 +1,168 @@
+---
+title: Configuration Options
+description: Complete reference for cc-statusline configuration options
+---
+
+## Overview
+
+The `StatuslineConfig` interface defines all available configuration options for cc-statusline. These options control which features are displayed, how they're rendered, and where the statusline is installed.
+
+## Configuration Interface
+
+All configuration is managed through the `StatuslineConfig` interface defined in `src/cli/prompts.ts:3`.
+
+```typescript
+export interface StatuslineConfig {
+  features: string[]
+  runtime: 'bash' | 'python' | 'node'
+  colors: boolean
+  theme: 'minimal' | 'detailed' | 'compact'
+  ccusageIntegration: boolean
+  logging: boolean
+  customEmojis: boolean
+  installLocation?: 'global' | 'project'
+}
+```
+
+## Core Options
+
+<ParamField path="features" type="string[]" required>
+  Array of feature flags to enable. See [Feature Flags](/cli/feature-flags) for available options.
+  
+  **Validation**: At least one feature must be selected.
+  
+  **Example**: `['directory', 'git', 'model', 'context', 'usage']`
+</ParamField>
+
+<ParamField path="runtime" type="'bash' | 'python' | 'node'" default="'bash'">
+  Target runtime for the generated statusline script.
+  
+  **Current Support**: Only `'bash'` is fully implemented in v1.4.0.
+  
+  **Default**: `'bash'` (set automatically in `prompts.ts:71`)
+</ParamField>
+
+<ParamField path="colors" type="boolean" default="true">
+  Enable 256-color palette and emoji support for enhanced visual output.
+  
+  **Prompt**: "Enable modern color scheme and emojis?"
+  
+  **Effects**:
+  - Enables color-coded output (context, costs, git status)
+  - Adds emoji indicators for each section
+  - Respects `NO_COLOR` environment variable
+  
+  **Default**: `true` (prompted in `prompts.ts:42-46`)
+</ParamField>
+
+<ParamField path="theme" type="'minimal' | 'detailed' | 'compact'" default="'detailed'">
+  Visual theme controlling layout density and information display. See [Themes](/cli/themes) for details.
+  
+  **Default**: `'detailed'` (hardcoded in `prompts.ts:73`)
+</ParamField>
+
+## Integration Options
+
+<ParamField path="ccusageIntegration" type="boolean" default="false">
+  Enable integration with [ccusage](https://github.com/ryoppippi/ccusage) for usage analytics.
+  
+  **Auto-configured**: Automatically enabled when `session` feature is selected (see `prompts.ts:67`).
+  
+  **Enables**:
+  - Cost tracking with burn rates
+  - Token consumption analytics
+  - Session reset timer
+  
+  **Requirement**: `jq` must be installed for full functionality.
+  
+  **Default**: `false` (enabled automatically if needed)
+</ParamField>
+
+<ParamField path="logging" type="boolean" default="false">
+  Enable debug logging to `.claude/statusline.log`.
+  
+  **Prompt**: "Enable debug logging to .claude/statusline.log?"
+  
+  **Log Contents**:
+  - Timestamp and version info
+  - Raw JSON input from Claude Code
+  - Extracted values (directory, model, git, context, costs)
+  - JSON parser mode (jq vs fallback)
+  
+  **Location**: Same directory as statusline script
+  
+  **Default**: `false` (prompted in `prompts.ts:48-52`)
+</ParamField>
+
+<ParamField path="customEmojis" type="boolean" default="false">
+  Allow custom emoji configuration (future feature).
+  
+  **Status**: Not yet implemented in v1.4.0.
+  
+  **Default**: `false` (hardcoded in `prompts.ts:76`)
+</ParamField>
+
+## Installation Options
+
+<ParamField path="installLocation" type="'global' | 'project'" default="'project'">
+  Determines where the statusline is installed.
+  
+  **Prompt**: "Where would you like to install the statusline?"
+  
+  **Options**:
+  - `'global'` - Installs to `~/.claude/` for use across all projects
+  - `'project'` - Installs to `./.claude/` for project-specific configuration
+  
+  **Default**: `'project'` (prompted in `prompts.ts:54-62`)
+  
+  **Added in**: v1.2.4
+</ParamField>
+
+## Configuration Flow
+
+The configuration is collected interactively via `collectConfiguration()` in `prompts.ts:14`:
+
+1. **Feature Selection** - Multi-select checkbox (at least 1 required)
+2. **Color Preference** - Yes/no confirmation (default: yes)
+3. **Logging** - Yes/no confirmation (default: no)
+4. **Install Location** - Global or project (default: project)
+
+Intelligent defaults are then applied:
+- Runtime is set to `'bash'`
+- Theme is set to `'detailed'`
+- ccusage integration is enabled if session feature is selected
+- Custom emojis remain disabled
+
+## Example Configuration
+
+```typescript
+{
+  features: ['directory', 'git', 'model', 'context', 'usage', 'tokens', 'burnrate'],
+  runtime: 'bash',
+  colors: true,
+  theme: 'detailed',
+  ccusageIntegration: false,
+  logging: false,
+  customEmojis: false,
+  installLocation: 'project'
+}
+```
+
+## Configuration Summary
+
+After configuration, a summary is displayed via `displayConfigSummary()` (`prompts.ts:81-97`):
+
+```
+✅ Configuration Summary:
+   Runtime: bash
+   Theme: detailed
+   Colors: ✅
+   Features: directory, git, model, context, usage
+   ⚠️  Session reset time requires ccusage (npx ccusage@latest)
+```
+
+## Related
+
+- [Feature Flags](/cli/feature-flags) - Available feature options
+- [Themes](/cli/themes) - Theme options and layouts
+- [Init Command](/cli/init) - Interactive configuration wizard
