@@ -1,0 +1,110 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "cc-statusline",
+  "projectDescription": "Interactive CLI tool for generating beautiful, informative statuslines for Claude Code terminals.",
+  "theme": "palm",
+  "primaryColor": "#8B5CF6",
+  "lightColor": "#A78BFA",
+  "darkColor": "#6D28D9",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/overview",
+              "features/directory-git",
+              "features/context-tracking",
+              "features/cost-monitoring",
+              "features/session-timer",
+              "features/customization"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/configuration",
+              "guides/preview",
+              "guides/global-vs-project",
+              "guides/troubleshooting",
+              "guides/performance"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI Reference",
+        "groups": [
+          {
+            "group": "Commands",
+            "pages": [
+              "cli/init",
+              "cli/preview",
+              "cli/test"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "cli/config-options",
+              "cli/feature-flags",
+              "cli/themes"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Advanced",
+        "groups": [
+          {
+            "group": "Development",
+            "pages": [
+              "advanced/architecture",
+              "advanced/bash-generation",
+              "advanced/testing",
+              "advanced/contributing"
+            ]
+          },
+          {
+            "group": "Integration",
+            "pages": [
+              "advanced/ccusage-integration",
+              "advanced/claude-code-json",
+              "advanced/manual-setup"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Interactive CLI with guided setup",
+    "Real-time context usage tracking with progress bars",
+    "Live cost monitoring with burn rate analysis",
+    "Git branch and directory display",
+    "Token statistics and TPM tracking",
+    "Session timer with reset countdown",
+    "Optimized bash script generation (<100ms execution)",
+    "Global or project-level installation options"
+  ],
+  "publicApiSurface": [
+    "cc-statusline init - Initialize custom statusline with interactive prompts",
+    "cc-statusline preview <script-path> - Preview statusline with mock data",
+    "cc-statusline test - Test statusline with real Claude Code JSON input",
+    "StatuslineConfig interface - Configuration object structure",
+    "generateBashStatusline() - Core bash script generator",
+    "--output <path> - Custom output path flag",
+    "--no-install - Skip automatic installation flag",
+    "installLocation option - Global (~/.claude) or project (./.claude) installation"
+  ]
+}
